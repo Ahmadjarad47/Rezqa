@@ -1,0 +1,43 @@
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace Rezqa.API.Extensions;
+
+public static class CorsConfiguration
+{
+    public static IServiceCollection AddCorsServices(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddCors(options =>
+        {
+            options.AddPolicy("StrictPolicy", builder =>
+            {
+                // Only allow specific origins
+                var allowedOrigins = configuration.GetSection("AllowedOrigins").Get<string[]>();
+                if (allowedOrigins != null && allowedOrigins.Any())
+                {
+                    builder.WithOrigins(allowedOrigins)
+                           .AllowCredentials();
+                }
+                else
+                {
+                    // If no origins are configured, only allow the same origin
+                    builder.SetIsOriginAllowed(origin => new Uri(origin).Host == "localhost");
+                }
+
+                // Only allow specific methods
+                builder.WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                       .WithHeaders("Authorization", "Content-Type", "X-XSRF-TOKEN")
+                       .SetIsOriginAllowedToAllowWildcardSubdomains()
+                       .SetPreflightMaxAge(TimeSpan.FromMinutes(10));
+            });
+        });
+
+        return services;
+    }
+
+    public static IApplicationBuilder UseCorsMiddleware(this IApplicationBuilder app)
+    {
+        app.UseCors("StrictPolicy");
+        return app;
+    }
+} 

@@ -1,0 +1,6 @@
+@Rezqa.API_HostAddress = http://localhost:5003
+
+GET {{Rezqa.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
