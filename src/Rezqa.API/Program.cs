@@ -8,7 +8,7 @@ using System.Text;
 using Rezqa.Infrastructure.Persistence;
 using Rezqa.Application.Features.User.Handlers.Commands;
 using Microsoft.AspNetCore.Mvc;
-using Rezqa.Infrastructure;
+using Rezqa.Infrastructure.Extensions;
 using Microsoft.AspNetCore.ResponseCompression;
 using System.IO.Compression;
 using Rezqa.Application.Features.User.Settings;
@@ -155,6 +155,13 @@ builder.Services.AddRateLimiting(builder.Configuration);
 
 var app = builder.Build();
 
+// Ensure uploads directory exists
+var uploadsPath = Path.Combine(app.Environment.WebRootPath, "uploads");
+if (!Directory.Exists(uploadsPath))
+{
+    Directory.CreateDirectory(uploadsPath);
+}
+
 // Seed the database
 using (var scope = app.Services.CreateScope())
 {
@@ -181,8 +188,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseStaticFiles();
 // Use Response Compression
 app.UseResponseCompression();
+
+
 
 // Use Response Caching
 app.UseResponseCaching();

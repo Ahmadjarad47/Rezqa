@@ -26,7 +26,7 @@ public class EmailService : IEmailService
 
     public async Task SendEmailVerificationAsync(string email, string userName, string token)
     {
-        var verificationLink = $"{_emailSettings.BaseUrl}/verify-email?email={Uri.EscapeDataString(email)}&token={Uri.EscapeDataString(token)}";
+        var verificationLink = $"{_emailSettings.BaseUrl}/identity/verify-email?email={Uri.EscapeDataString(email)}&token={Uri.EscapeDataString(token)}";
 
         var subject = "Verify your email address";
         var body = $@"
@@ -83,7 +83,7 @@ public class EmailService : IEmailService
 
     public async Task SendPasswordResetAsync(string email, string userName, string token)
     {
-        var resetLink = $"{_emailSettings.BaseUrl}/reset-password?email={Uri.EscapeDataString(email)}&token={Uri.EscapeDataString(token)}";
+        var resetLink = $"{_emailSettings.BaseUrl}/identity/reset-password?email={Uri.EscapeDataString(email)}&token={Uri.EscapeDataString(token)}";
 
         var subject = "Reset your password";
         var body = $@"
@@ -149,7 +149,7 @@ public class EmailService : IEmailService
     {
         try
         {
-            _logger.LogInformation("Attempting to send email to {Email} using SMTP server {Server}:{Port}", 
+            _logger.LogInformation("Attempting to send email to {Email} using SMTP server {Server}:{Port}",
                 to, _emailSettings.SmtpServer, _emailSettings.SmtpPort);
 
             using var client = new SmtpClient(_emailSettings.SmtpServer, _emailSettings.SmtpPort)
@@ -170,7 +170,7 @@ public class EmailService : IEmailService
             };
             message.To.Add(to);
 
-            _logger.LogInformation("Sending email from {FromEmail} to {ToEmail}", 
+            _logger.LogInformation("Sending email from {FromEmail} to {ToEmail}",
                 _emailSettings.FromEmail, to);
 
             await client.SendMailAsync(message);
@@ -178,7 +178,7 @@ public class EmailService : IEmailService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to send email to {Email}. Error: {ErrorMessage}", 
+            _logger.LogError(ex, "Failed to send email to {Email}. Error: {ErrorMessage}",
                 to, ex.Message);
             throw new ApplicationException($"Failed to send email: {ex.Message}", ex);
         }

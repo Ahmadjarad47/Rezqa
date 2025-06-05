@@ -18,7 +18,7 @@ public class RegisterCommandValidator : AbstractValidator<RegisterCommandRequest
             .EmailAddress()
             .MaximumLength(100);
 
-        RuleFor(x => x.Phone)
+        RuleFor(x => x.PhoneNumber)
             .NotEmpty()
             .Matches(@"^\+?[1-9]\d{1,14}$")
             .WithMessage("Phone number must be in E.164 format (e.g., +1234567890)");
@@ -32,4 +32,4 @@ public class RegisterCommandValidator : AbstractValidator<RegisterCommandRequest
             .Matches("[0-9]").WithMessage("Password must contain at least one number")
             .Matches("[^a-zA-Z0-9]").WithMessage("Password must contain at least one special character");
     }
-} 
+}

@@ -7,7 +7,7 @@ public class LoginCommandValidator : AbstractValidator<LoginCommandRequestDTO>
 {
     public LoginCommandValidator()
     {
-        RuleFor(x => x.UserName)
+        RuleFor(x => x.Email)
             .NotEmpty()
             .WithMessage("Username is required");
 
@@ -15,4 +15,4 @@ public class LoginCommandValidator : AbstractValidator<LoginCommandRequestDTO>
             .NotEmpty()
             .WithMessage("Password is required");
     }
-} 
+}

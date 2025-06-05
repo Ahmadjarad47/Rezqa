@@ -1,8 +1,7 @@
-using MediatR;
+﻿using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Rezqa.Application.Features.User.Dtos;
-using Rezqa.Application.Features.User.Handlers.Commands;
 using Rezqa.Application.Features.User.Handlers.Commands.Login;
 using Rezqa.Application.Features.User.Handlers.Commands.Logout;
 using Rezqa.Application.Features.User.Handlers.Commands.RefreshToken;
@@ -10,8 +9,7 @@ using Rezqa.Application.Features.User.Handlers.Commands.Register;
 using Rezqa.Application.Features.User.Handlers.Commands.ResetPassword;
 using Rezqa.Application.Features.User.Handlers.Commands.VerifyEmail;
 using Rezqa.Application.Features.User.Handlers.Commands.ResendEmailConfirmation;
-using System.Threading;
-
+using Rezqa.Application.Features.User.Handlers.Commands.ForgotPassword;
 namespace Rezqa.API.Controllers;
 
 [ApiController]
@@ -21,16 +19,16 @@ public class AuthController : ControllerBase
 {
     private readonly IMediator _mediator;
     private readonly ILogger<AuthController> _logger;
-    private readonly IConfiguration _configuration;
+
 
     public AuthController(
         IMediator mediator,
-        ILogger<AuthController> logger,
-        IConfiguration configuration)
+        ILogger<AuthController> logger
+)
     {
         _mediator = mediator;
         _logger = logger;
-        _configuration = configuration;
+
     }
 
     /// <summary>
@@ -50,6 +48,8 @@ public class AuthController : ControllerBase
         try
         {
             var response = await _mediator.Send(new RegisterCommand(request), cancellationToken);
+            if (!response.IsSuccess)
+                return BadRequest(response);
 
             return Ok(response);
         }
@@ -77,18 +77,20 @@ public class AuthController : ControllerBase
         try
         {
             var response = await _mediator.Send(new LoginCommand(request), cancellationToken);
+            if (!response.IsSuccess)
+                return BadRequest(response);
 
             // Set access token cookie
-            SetAccessTokenCookie(response.AccessToken);
+            SetAccessTokenCookie(response.AccessToken!);
 
             // Set refresh token cookie (in a real app, generate a separate refresh token)
-            SetRefreshTokenCookie(response.AccessToken);
+            SetRefreshTokenCookie(response.AccessToken!);
 
             return Ok(response);
         }
         catch (ApplicationException ex)
         {
-            _logger.LogError(ex, "Login failed for user {UserName}", request.UserName);
+            _logger.LogError(ex, "Login failed for user {Email}", request.Email);
             return BadRequest(ex.Message);
         }
     }
@@ -117,7 +119,7 @@ public class AuthController : ControllerBase
                 cancellationToken);
 
             // Set new refresh token cookie
-            SetRefreshTokenCookie(response.AccessToken); // In real app, generate a new refresh token
+            SetRefreshTokenCookie(response.AccessToken!); // In real app, generate a new refresh token
 
             return Ok(response);
         }
@@ -230,6 +232,37 @@ public class AuthController : ControllerBase
 
         // Always return success to prevent email enumeration
         return Ok(new { message = "If your email is not confirmed, you will receive a new confirmation email." });
+    }
+
+    /// <summary>
+    /// Initiates the password reset process by sending a reset link to the user's email
+    /// </summary>
+    /// <param name="request">Email address to send reset link to</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Success message</returns>
+    [HttpPost("forgot-password")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    [ResponseCache(NoStore = true)]
+    public async Task<IActionResult> ForgotPassword(
+        [FromBody] ForgotPasswordRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var command = new ForgotPasswordCommand(request);
+            var result = await _mediator.Send(command, cancellationToken);
+
+            // Always return success to prevent email enumeration
+            return result ? Ok(new { message = "سوف تتلقى رابط إعادة تعيين كلمة المرور." })
+                : BadRequest(new { message = "هذا البريد الإلكتروني غير مسجل" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Forgot password request failed for {Email}", request.Email);
+            return BadRequest("An error occurred while processing your request.");
+        }
     }
 
     private void SetAccessTokenCookie(string token)

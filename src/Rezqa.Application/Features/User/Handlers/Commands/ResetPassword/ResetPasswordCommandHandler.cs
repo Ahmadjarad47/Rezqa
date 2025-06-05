@@ -21,6 +21,7 @@ public class ResetPasswordCommandHandler : IRequestHandler<ResetPasswordCommand,
     public async Task<bool> Handle(ResetPasswordCommand request, CancellationToken cancellationToken)
     {
         var user = await _userManager.FindByEmailAsync(request.Request.Email);
+
         if (user == null)
         {
             throw new ApplicationException("User not found");
@@ -29,4 +30,4 @@ public class ResetPasswordCommandHandler : IRequestHandler<ResetPasswordCommand,
         var result = await _userManager.ResetPasswordAsync(user, request.Request.Token, request.Request.NewPassword);
         return result.Succeeded;
     }
-} 
+}

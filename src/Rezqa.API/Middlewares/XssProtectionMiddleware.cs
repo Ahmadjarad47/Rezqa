@@ -18,30 +18,49 @@ public class XssProtectionMiddleware
         // Sanitize query string
         if (context.Request.QueryString.HasValue)
         {
-            var sanitizedQuery = SanitizeInput(context.Request.QueryString.Value);
-            context.Request.QueryString = new QueryString(sanitizedQuery);
+            var queryDictionary = Microsoft.AspNetCore.WebUtilities
+                .QueryHelpers.ParseQuery(context.Request.QueryString.Value);
+
+            var sanitizedQuery = new Dictionary<string, StringValues>();
+
+            foreach (var pair in queryDictionary)
+            {
+                var key = SanitizeInput(pair.Key);
+                var value = new StringValues(pair.Value.Select(SanitizeInput).ToArray());
+                sanitizedQuery[key] = value;
+            }
+
+            var newQuery = Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString("", sanitizedQuery);
+            context.Request.QueryString = new QueryString(newQuery);
         }
 
-        // Sanitize form data
+        // Sanitize form fields (do NOT overwrite the form)
         if (context.Request.HasFormContentType)
         {
             var form = await context.Request.ReadFormAsync();
-            var sanitizedForm = new FormCollection(
-                form.ToDictionary(
-                    kvp => SanitizeInput(kvp.Key),
-                    kvp => new StringValues(kvp.Value.Select(v => SanitizeInput(v)).ToArray())
-                )
-            );
-            context.Request.Form = sanitizedForm;
+
+            foreach (var field in form)
+            {
+                // Skip file fields
+                if (!form.Files.Any(f => f.Name == field.Key))
+                {
+                    var sanitizedValues = new StringValues(field.Value.Select(SanitizeInput).ToArray());
+                    context.Items[$"Sanitized_{field.Key}"] = sanitizedValues;
+                }
+                else
+                {
+                    context.Items[$"Sanitized_{field.Key}"] = field.Value;
+                }
+            }
         }
 
-        // Sanitize headers
+        // Sanitize custom headers (optional, only for X- headers)
         foreach (var header in context.Request.Headers)
         {
-            if (header.Key.StartsWith("X-", StringComparison.OrdinalIgnoreCase))
+            if (header.Key.StartsWith("X-", System.StringComparison.OrdinalIgnoreCase))
             {
                 context.Request.Headers[header.Key] = new StringValues(
-                    header.Value.Select(v => SanitizeInput(v)).ToArray()
+                    header.Value.Select(SanitizeInput).ToArray()
                 );
             }
         }
@@ -51,30 +70,26 @@ public class XssProtectionMiddleware
 
     private static string SanitizeInput(string input)
     {
-        if (string.IsNullOrEmpty(input))
+        if (string.IsNullOrWhiteSpace(input))
             return input;
 
-        // Remove any script tags and their contents
+        // Remove <script> tags and content
         input = Regex.Replace(input, @"<script[^>]*>.*?</script>", "", RegexOptions.IgnoreCase | RegexOptions.Singleline);
 
-        // Remove any HTML tags
-        input = Regex.Replace(input, @"<[^>]*>", "");
+        // Remove all HTML tags
+        input = Regex.Replace(input, @"<[^>]+>", "");
 
-        // Remove any JavaScript event handlers
-        input = Regex.Replace(input, @"on\w+=""[^""]*""", "");
-        input = Regex.Replace(input, @"on\w+='[^']*'", "");
+        // Remove inline event handlers like onclick="..."
+        input = Regex.Replace(input, @"on\w+=""[^""]*""", "", RegexOptions.IgnoreCase);
+        input = Regex.Replace(input, @"on\w+='[^']*'", "", RegexOptions.IgnoreCase);
 
-        // Remove any JavaScript protocol handlers
-        input = Regex.Replace(input, @"javascript:", "", RegexOptions.IgnoreCase);
-        input = Regex.Replace(input, @"vbscript:", "", RegexOptions.IgnoreCase);
+        // Remove javascript:, vbscript:, data: protocols
+        input = Regex.Replace(input, @"(javascript|vbscript|data):", "", RegexOptions.IgnoreCase);
 
-        // Remove any data URLs
-        input = Regex.Replace(input, @"data:", "", RegexOptions.IgnoreCase);
-
-        // HTML encode special characters using WebEncoders
-        input = WebEncoders.Base64UrlEncode(System.Text.Encoding.UTF8.GetBytes(input));
-        input = System.Text.Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(input));
+        // Encode dangerous characters
+        input = input.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;")
+                     .Replace("\"", "&quot;").Replace("'", "&#x27;").Replace("/", "&#x2F;");
 
         return input;
     }
-} 
+}

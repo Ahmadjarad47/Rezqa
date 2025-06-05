@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Rezqa.Application.Features.User.Dtos;
 using Rezqa.Application.Features.User.Settings;
+using Rezqa.Infrastructure.Services;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -16,43 +17,67 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, AuthResponseDto
     private readonly UserManager<IdentityUser> _userManager;
     private readonly SignInManager<IdentityUser> _signInManager;
     private readonly JwtSettings _jwtSettings;
-    private readonly ILogger<LoginCommandHandler> _logger;
+    private readonly IEmailService _emailService;
 
     public LoginCommandHandler(
         UserManager<IdentityUser> userManager,
         SignInManager<IdentityUser> signInManager,
-        IOptions<JwtSettings> jwtSettings,
-        ILogger<LoginCommandHandler> logger)
+        IOptions<JwtSettings> jwtSettings
+,
+        IEmailService emailService)
     {
         _userManager = userManager;
         _signInManager = signInManager;
         _jwtSettings = jwtSettings.Value;
-        _logger = logger;
+        _emailService = emailService;
     }
 
     public async Task<AuthResponseDto> Handle(LoginCommand request, CancellationToken cancellationToken)
     {
-        var user = await _userManager.FindByNameAsync(request.Request.UserName);
+        var user = await _userManager.FindByEmailAsync(request.Request.Email);
         if (user == null)
         {
-            throw new ApplicationException("Invalid username or password");
+            return new AuthResponseDto(
+                IsSuccess: false,
+                Message: "Invalid username or password."
+            );
         }
 
         if (!await _userManager.IsEmailConfirmedAsync(user))
         {
-            throw new ApplicationException("Email not confirmed");
+            var Emailtoken = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+            await _emailService.SendEmailVerificationAsync(user.Email!, user.UserName!, Emailtoken);
+
+            return new AuthResponseDto(
+                IsSuccess: false,
+                Message: "Email not confirmed. Verification email has been sent."
+            );
         }
 
         var result = await _signInManager.CheckPasswordSignInAsync(user, request.Request.Password, false);
         if (!result.Succeeded)
         {
-            throw new ApplicationException("Invalid username or password");
+            return new AuthResponseDto(
+                IsSuccess: false,
+                Message: "Invalid username or password."
+            );
         }
 
-        return await GenerateAuthResponse(user);
+        // Generate token and fetch roles
+        var token = await GenerateAuthResponse(user); // Replace with your token logic
+        var roles = await _userManager.GetRolesAsync(user);
+
+        return new AuthResponseDto(
+            IsSuccess: true,
+            Message: "Login successful.",
+            AccessToken: token,
+            UserName: user.UserName!,
+            Email: user.Email!,
+            Roles: roles
+        );
     }
 
-    private async Task<AuthResponseDto> GenerateAuthResponse(IdentityUser user)
+    private async Task<string> GenerateAuthResponse(IdentityUser user)
     {
         var roles = await _userManager.GetRolesAsync(user);
         var claims = new List<Claim>
@@ -76,12 +101,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, AuthResponseDto
             expires: expires,
             signingCredentials: creds
         );
+        return new JwtSecurityTokenHandler().WriteToken(token);
 
-        return new AuthResponseDto(
-            AccessToken: new JwtSecurityTokenHandler().WriteToken(token),
-            UserName: user.UserName!,
-            Email: user.Email!,
-            Roles: roles.ToList()
-        );
     }
 }

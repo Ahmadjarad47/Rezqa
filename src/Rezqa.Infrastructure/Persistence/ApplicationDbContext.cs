@@ -2,23 +2,26 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Rezqa.Domain.Entities;
 using Rezqa.Domain.Identity;
 
 namespace Rezqa.Infrastructure.Persistence;
 
 public class ApplicationDbContext : IdentityDbContext
 {
-    private readonly ILogger<ApplicationDbContext> _logger;
+    private readonly ILogger<ApplicationDbContext>? _logger;
 
     public ApplicationDbContext(
         DbContextOptions<ApplicationDbContext> options,
-        ILogger<ApplicationDbContext> logger)
+        ILogger<ApplicationDbContext>? logger = null)
         : base(options)
     {
         _logger = logger;
         // Configure for better performance
         ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
     }
+
+    public DbSet<Category> Categories { get; set; } = null!;
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -30,7 +33,16 @@ public class ApplicationDbContext : IdentityDbContext
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
-        // Add any custom entity configurations here
+
+        builder.Entity<Category>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Description).IsRequired().HasMaxLength(1000);
+            entity.Property(e => e.Image).IsRequired();
+            entity.Property(e => e.CreatedBy).IsRequired();
+            entity.Property(e => e.CreatedAt).IsRequired();
+        });
     }
 }
 

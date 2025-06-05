@@ -1,8 +1,9 @@
 namespace Rezqa.Application.Features.User.Dtos;
-
 public record AuthResponseDto(
-    string AccessToken,
-    string UserName,
-    string Email,
-    IList<string> Roles
-); 
+    bool IsSuccess,
+    string Message,
+    string? AccessToken = null,
+    string? UserName = null,
+    string? Email = null,
+    IList<string>? Roles = null
+);

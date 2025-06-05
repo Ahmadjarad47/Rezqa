@@ -11,15 +11,6 @@ public static class SecurityConfiguration
 {
     public static IServiceCollection AddSecurityServices(this IServiceCollection services, IConfiguration configuration)
     {
-        // Add Rate Limiting
-        services.AddMemoryCache();
-        services.Configure<IpRateLimitOptions>(configuration.GetSection("IpRateLimiting"));
-        services.Configure<IpRateLimitPolicies>(configuration.GetSection("IpRateLimitPolicies"));
-        services.AddSingleton<IIpPolicyStore, MemoryCacheIpPolicyStore>();
-        services.AddSingleton<IRateLimitCounterStore, MemoryCacheRateLimitCounterStore>();
-        services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
-        services.AddSingleton<IProcessingStrategy, AsyncKeyLockProcessingStrategy>();
-        services.AddInMemoryRateLimiting();
 
         // Add Antiforgery
         services.AddAntiforgery(options =>
@@ -59,7 +50,7 @@ public static class SecurityConfiguration
                 "default-src 'self'; " +
                 "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
                 "style-src 'self' 'unsafe-inline'; " +
-                "img-src 'self' data: https:; " +
+
                 "font-src 'self'; " +
                 "frame-ancestors 'none'; " +
                 "form-action 'self'; " +
@@ -96,4 +87,4 @@ public static class SecurityConfiguration
 
         return app;
     }
-} 
+}

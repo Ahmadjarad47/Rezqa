@@ -39,4 +39,8 @@ public record ResetPasswordRequest(
 public record TokenResponse(
     string Token,
     DateTime ExpiresAt
+);
+
+public record ForgotPasswordRequest(
+    [Required] [EmailAddress] string Email
 ); 

@@ -54,8 +54,8 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, A
 
         var tokenHandler = new JwtSecurityTokenHandler();
         var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out var securityToken);
-        
-        if (securityToken is not JwtSecurityToken jwtSecurityToken || 
+
+        if (securityToken is not JwtSecurityToken jwtSecurityToken ||
             !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
         {
             throw new SecurityTokenException("Invalid token");
@@ -68,12 +68,12 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, A
     {
         var roles = await _userManager.GetRolesAsync(user);
         var claims = new List<Claim>
-        {
-            new(ClaimTypes.Name, user.UserName!),
-            new(ClaimTypes.Email, user.Email!),
-            new(JwtRegisteredClaimNames.Sub, user.Id),
-            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-        };
+    {
+        new(ClaimTypes.Name, user.UserName!),
+        new(ClaimTypes.Email, user.Email!),
+        new(JwtRegisteredClaimNames.Sub, user.Id),
+        new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+    };
 
         claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
 
@@ -89,11 +89,16 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, A
             signingCredentials: creds
         );
 
+        var jwt = new JwtSecurityTokenHandler().WriteToken(token);
+
         return new AuthResponseDto(
-            AccessToken: new JwtSecurityTokenHandler().WriteToken(token),
+            IsSuccess: true,
+            Message: "Login successful.",
+            AccessToken: jwt,
             UserName: user.UserName!,
             Email: user.Email!,
             Roles: roles.ToList()
         );
     }
-} 
+
+}
