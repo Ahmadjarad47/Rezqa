@@ -1,0 +1,195 @@
+<!-- Dashboard Layout -->
+<div class="flex h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+  <!-- Sidebar -->
+  <aside [class.w-72]="isSidebarOpen" [class.w-20]="!isSidebarOpen" 
+    class="bg-white shadow-2xl transition-all duration-300 border-r border-gray-100 backdrop-blur-lg bg-opacity-95 z-20">
+    <!-- Logo -->
+    <div class="flex items-center justify-between h-16 px-6 border-b border-gray-100">
+      <div class="flex items-center space-x-3">
+        <div class="flex-shrink-0">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-blue-400 flex items-center justify-center transform hover:scale-105 transition-transform duration-200 shadow-lg">
+            <i class="fas fa-shield-alt text-white text-lg"></i>
+          </div>
+        </div>
+        <span *ngIf="isSidebarOpen" class="text-xl font-bold bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400 bg-clip-text text-transparent">
+          Admin Panel
+        </span>
+      </div>
+      <button (click)="toggleSidebar()" 
+        class="p-1.5 rounded-lg hover:bg-blue-50 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 group"
+        aria-label="Toggle sidebar">
+        <i *ngIf="isSidebarOpen" class="fas fa-chevron-left w-5 h-5 text-gray-600 group-hover:text-blue-600 transition-colors duration-200"></i>
+        <i *ngIf="!isSidebarOpen" class="fas fa-chevron-right w-5 h-5 text-gray-600 group-hover:text-blue-600 transition-colors duration-200"></i>
+      </button>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="mt-6 px-3">
+      <div class="space-y-1.5">
+        <a *ngFor="let item of navItems" [routerLink]="item.route" 
+           [routerLinkActive]="'bg-gradient-to-r from-blue-50 to-blue-100 text-blue-600 shadow-sm'"
+           class="group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-all duration-200 relative overflow-hidden">
+          <div class="absolute inset-0 bg-gradient-to-r from-blue-500/0 via-blue-500/0 to-blue-500/0 group-hover:from-blue-500/5 group-hover:via-blue-500/10 group-hover:to-blue-500/5 transition-all duration-500"></div>
+          <i [class]="'mr-3 w-5 text-center ' + item.icon + ' text-gray-400 group-hover:text-blue-600 transition-colors duration-200'"></i>
+          <span *ngIf="isSidebarOpen" class="flex-1">{{ item.title }}</span>
+          <div *ngIf="!isSidebarOpen" 
+               class="absolute left-20 bg-gray-900 text-white px-3 py-1.5 rounded-lg text-sm opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-lg transform group-hover:translate-x-0 translate-x-2">
+            {{ item.title }}
+          </div>
+        </a>
+      </div>
+    </nav>
+
+    <!-- User Profile Card -->
+    <div *ngIf="isSidebarOpen" class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-100">
+      <div class="flex items-center space-x-3 p-3 rounded-xl hover:bg-gray-50 transition-all duration-200 group cursor-pointer">
+        <div class="relative">
+          <img class="h-10 w-10 rounded-xl ring-2 ring-blue-500 group-hover:ring-blue-400 transition-all duration-200" 
+               src="https://ui-avatars.com/api/?name=Admin&background=0D8ABC&color=fff" alt="Profile">
+          <span class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full ring-2 ring-white"></span>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-gray-900 truncate group-hover:text-blue-600 transition-colors duration-200">Admin User</p>
+          <p class="text-xs text-gray-500 truncate group-hover:text-blue-500 transition-colors duration-200">adminexample.com</p>
+        </div>
+        <i class="fas fa-ellipsis-vertical w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors duration-200"></i>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <div class="flex-1 flex flex-col overflow-hidden">
+    <!-- Top Navigation -->
+    <header class="bg-white/80 backdrop-blur-lg shadow-sm border-b border-gray-100 sticky top-0 z-10">
+      <div class="flex items-center justify-between h-16 px-6">
+        <div class="flex items-center space-x-4">
+          <h1 class="text-lg font-semibold text-gray-900">{{ currentPageTitle }}</h1>
+          <div class="h-6 w-px bg-gradient-to-b from-gray-200 to-gray-100"></div>
+          <nav class="flex space-x-4">
+            <a href="#" class="text-sm text-gray-500 hover:text-blue-600 transition-colors duration-200">Overview</a>
+            <a href="#" class="text-sm text-gray-500 hover:text-blue-600 transition-colors duration-200">Analytics</a>
+            <a href="#" class="text-sm text-gray-500 hover:text-blue-600 transition-colors duration-200">Reports</a>
+          </nav>
+        </div>
+        <div class="flex items-center space-x-4">
+          <!-- Notifications Dropdown -->
+          <div class="relative">
+            <button (click)="toggleNotifications($event)" 
+                    class="relative p-2 rounded-xl hover:bg-blue-50 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 group"
+                    aria-label="Notifications">
+              <i class="fas fa-bell w-5 h-5 text-gray-600 group-hover:text-blue-600 transition-colors duration-200"></i>
+              <span class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"></span>
+            </button>
+
+            <!-- Notifications Menu -->
+            <div *ngIf="isNotificationsOpen" 
+                 class="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 transform origin-top-right transition-all duration-200">
+              <div class="px-4 py-2 border-b border-gray-100">
+                <div class="flex items-center justify-between">
+                  <h3 class="text-sm font-semibold text-gray-900">Notifications</h3>
+                  <button class="text-xs text-blue-600 hover:text-blue-700">Mark all as read</button>
+                </div>
+              </div>
+              <div class="max-h-96 overflow-y-auto">
+                <!-- Notification Items -->
+                <a *ngFor="let notification of notifications" 
+                   class="block px-4 py-3 hover:bg-gray-50 transition-colors duration-200 border-b border-gray-50 last:border-0">
+                  <div class="flex items-start space-x-3">
+                    <div class="flex-shrink-0">
+                      <div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                        <i class="fas fa-info-circle text-blue-600"></i>
+                      </div>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <p class="text-sm font-medium text-gray-900">{{ notification.title }}</p>
+                      <p class="text-xs text-gray-500 mt-1">{{ notification.message }}</p>
+                      <p class="text-xs text-gray-400 mt-1">{{ notification.time }}</p>
+                    </div>
+                    <div class="flex-shrink-0">
+                      <span *ngIf="!notification.read" class="w-2 h-2 bg-blue-600 rounded-full"></span>
+                    </div>
+                  </div>
+                </a>
+              </div>
+              <div class="px-4 py-2 border-t border-gray-100">
+                <a href="#" class="block text-center text-sm text-blue-600 hover:text-blue-700">View all notifications</a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Profile Dropdown -->
+          <div class="relative">
+            <button (click)="toggleProfileMenu($event)" 
+                    class="flex items-center space-x-3 p-2 rounded-xl hover:bg-blue-50 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 group"
+                    aria-label="User menu">
+              <img class="h-8 w-8 rounded-xl ring-2 ring-blue-500 group-hover:ring-blue-400 transition-all duration-200" 
+                   src="https://ui-avatars.com/api/?name=Admin&background=0D8ABC&color=fff" alt="Profile">
+              <span class="text-sm font-medium text-gray-700 group-hover:text-blue-600 transition-colors duration-200">Admin</span>
+              <i class="fas fa-chevron-down w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors duration-200"></i>
+            </button>
+
+            <!-- Profile Menu -->
+            <div *ngIf="isProfileMenuOpen" 
+                 class="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 transform origin-top-right transition-all duration-200">
+              <!-- User Info -->
+              <div class="px-4 py-3 border-b border-gray-100">
+                <p class="text-sm font-medium text-gray-900">Admin User</p>
+                <p class="text-xs text-gray-500 truncate">adminexample.com</p>
+              </div>
+
+              <!-- Menu Items -->
+              <div class="py-1">
+                <a href="#" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors duration-200">
+                  <i class="fas fa-user w-5 h-5 mr-3 text-gray-400"></i>
+                  Your Profile
+                </a>
+                <a href="#" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors duration-200">
+                  <i class="fas fa-cog w-5 h-5 mr-3 text-gray-400"></i>
+                  Settings
+                </a>
+                <a href="#" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors duration-200">
+                  <i class="fas fa-calendar w-5 h-5 mr-3 text-gray-400"></i>
+                  Calendar
+                </a>
+                <a href="#" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors duration-200">
+                  <i class="fas fa-shield-alt w-5 h-5 mr-3 text-gray-400"></i>
+                  Security
+                </a>
+              </div>
+
+              <!-- Divider -->
+              <div class="border-t border-gray-100 my-1"></div>
+
+              <!-- Logout -->
+              <div class="py-1">
+                <a href="#" class="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-200">
+                  <i class="fas fa-sign-out-alt w-5 h-5 mr-3 text-red-400"></i>
+                  Sign out
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Page Content -->
+    <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gradient-to-br from-gray-50 to-gray-100">
+      <div class="container mx-auto px-6 py-8">
+        <!-- Breadcrumb -->
+        <div class="flex items-center space-x-2 text-sm text-gray-500 mb-6">
+          <a href="#" class="hover:text-blue-600 transition-colors duration-200">Dashboard</a>
+          <i class="fas fa-chevron-right w-3 h-3"></i>
+          <span class="text-gray-900 font-medium">{{ currentPageTitle }}</span>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-gray-100 transform hover:scale-[1.002] transition-all duration-300">
+          <div class="p-6">
+            <router-outlet></router-outlet>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>

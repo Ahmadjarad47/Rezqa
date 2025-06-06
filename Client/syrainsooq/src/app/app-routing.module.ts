@@ -5,17 +5,23 @@ import { HomeComponent } from './home/home.component';
 const routes: Routes = [
   {
     path: 'home',
-    component: HomeComponent
+    component: HomeComponent,
   },
   {
     path: 'identity',
-    loadChildren: () => import('./identity/identity.module').then(m => m.IdentityModule)
+    loadChildren: () =>
+      import('./identity/identity.module').then((m) => m.IdentityModule),
   },
-  { path: '', redirectTo: 'home', pathMatch: 'full' }
+  {
+    path: 'admin',
+    loadChildren: () =>
+      import('./admin/admin.module').then((m) => m.AdminModule),
+  },
+  { path: '', redirectTo: 'home', pathMatch: 'full' },
 ];
 
 @NgModule({
   imports: [RouterModule.forRoot(routes)],
-  exports: [RouterModule]
+  exports: [RouterModule],
 })
-export class AppRoutingModule { }
+export class AppRoutingModule {}

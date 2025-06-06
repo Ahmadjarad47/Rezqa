@@ -10,7 +10,10 @@ import { ToastrModule } from 'ngx-toastr';
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { HomeComponent } from './home/home.component';
-import { provideHttpClient, withFetch } from '@angular/common/http';
+import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
+import { AuthService } from './identity/services/auth.service';
+import { credentialsInterceptor } from './core/interceptor/credentials.interceptor';
+import { authInterceptor } from './identity/interceptors/auth.interceptor';
 
 @NgModule({
   declarations: [AppComponent, HomeComponent],
@@ -27,7 +30,14 @@ import { provideHttpClient, withFetch } from '@angular/common/http';
     }),
     AppRoutingModule,
   ],
-  providers: [provideClientHydration(withEventReplay()), provideHttpClient(withFetch())],
-  bootstrap: [AppComponent],
+  providers: [
+    provideClientHydration(withEventReplay()),
+    provideHttpClient(
+      withFetch(),
+      withInterceptors([authInterceptor, credentialsInterceptor])
+    ),
+    AuthService
+  ],
+  bootstrap: [AppComponent]
 })
-export class AppModule {}
+export class AppModule { }

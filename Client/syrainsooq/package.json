@@ -25,6 +25,7 @@
     "express": "^4.18.2",
     "ngx-toastr": "^19.0.0",
     "postcss": "^8.5.4",
+    "preline": "^3.1.0",
     "rxjs": "~7.8.0",
     "tailwindcss": "^4.1.8",
     "tslib": "^2.3.0",
