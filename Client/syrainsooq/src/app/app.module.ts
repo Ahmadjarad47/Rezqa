@@ -4,19 +4,31 @@ import {
   provideClientHydration,
   withEventReplay,
 } from '@angular/platform-browser';
-import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import {
+  BrowserAnimationsModule,
+  provideAnimations,
+} from '@angular/platform-browser/animations';
 import { ToastrModule } from 'ngx-toastr';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
-import { HomeComponent } from './home/home.component';
-import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
+import {
+  provideHttpClient,
+  withFetch,
+  withInterceptors,
+} from '@angular/common/http';
 import { AuthService } from './identity/services/auth.service';
-import { credentialsInterceptor } from './core/interceptor/credentials.interceptor';
 import { authInterceptor } from './identity/interceptors/auth.interceptor';
+import { NgxSpinnerModule } from 'ngx-spinner';
+import { HomeComponent } from './core/components/home/home.component';
+import { NavbarComponent } from './core/components/navbar/navbar.component';
+import { AdsHomeComponent } from './core/components/ads/ads-home/ads-home.component';
+import { AdsDetailsComponent } from './core/components/ads/ads-details/ads-details.component';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { credentialsInterceptor } from './core/interceptor/credentials.interceptor';
 
 @NgModule({
-  declarations: [AppComponent, HomeComponent],
+  declarations: [AppComponent, HomeComponent, NavbarComponent, AdsHomeComponent, AdsDetailsComponent],
   imports: [
     BrowserModule,
     BrowserAnimationsModule,
@@ -29,15 +41,18 @@ import { authInterceptor } from './identity/interceptors/auth.interceptor';
       enableHtml: true,
     }),
     AppRoutingModule,
+    NgxSpinnerModule,
+    FormsModule,
+    ReactiveFormsModule
   ],
   providers: [
     provideClientHydration(withEventReplay()),
     provideHttpClient(
       withFetch(),
-      withInterceptors([authInterceptor, credentialsInterceptor])
+      withInterceptors([credentialsInterceptor])
     ),
-    AuthService
+    provideAnimations(),
   ],
-  bootstrap: [AppComponent]
+  bootstrap: [AppComponent],
 })
-export class AppModule { }
+export class AppModule {}

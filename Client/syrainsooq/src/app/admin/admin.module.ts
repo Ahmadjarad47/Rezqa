@@ -1,19 +1,41 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { RouterModule } from '@angular/router';
 import { AdminRoutingModule } from './admin-routing.module';
-import { CategoryComponent } from './components/category/category.component';
 import { DashboardLayoutComponent } from './components/dashboard-layout/dashboard-layout.component';
+import { UsersComponent } from './components/users/users.component';
+import { CategoriesComponent } from './components/categories/categories.component';
+import { CategoryFormComponent } from './components/category-form/category-form.component';
+import { SubCategoriesComponent } from './components/subcategories/subcategories.component';
+import { SubCategoryFormComponent } from './components/subcategory-form/subcategory-form.component';
+import { DynamicFieldsComponent } from './components/dynamic-fields/dynamic-fields.component';
+import { DynamicFieldFormComponent } from './components/dynamic-field-form/dynamic-field-form.component';
+import { AdsComponent } from './components/ads/ads.component';
+import { ReportComponent } from './components/report/report.component';
 
 @NgModule({
   declarations: [
-    CategoryComponent,
-    DashboardLayoutComponent
+    DashboardLayoutComponent,
+    UsersComponent,
+    CategoriesComponent,
+    CategoryFormComponent,
+    SubCategoriesComponent,
+    SubCategoryFormComponent,
+    DynamicFieldsComponent,
+    DynamicFieldFormComponent,
+    AdsComponent,
+    ReportComponent,
   ],
   imports: [
     CommonModule,
     FormsModule,
-    AdminRoutingModule
+    ReactiveFormsModule,
+    RouterModule,
+    AdminRoutingModule,
   ],
+  exports: [
+    AdsComponent
+  ]
 })
 export class AdminModule {}

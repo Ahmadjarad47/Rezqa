@@ -1,57 +1,50 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { CategoryDto, CreateCategoryRequest, UpdateCategoryRequest } from '../models/category.model';
-import { PaginatedResponse, PaginationParams } from '../models/pagination.model';
-import { environment } from '../../../environments/environment';
+import { Category, GetAllCategoriesRequest, PaginatedResult } from '../models/category';
+import { environment } from '../../../environments/environment.development';
 
 @Injectable({
   providedIn: 'root'
 })
 export class CategoryService {
-  private apiUrl = `${environment.apiUrl}admin/Category`;
+  private apiUrl = environment.apiUrl + 'admin/Category';
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) { }
 
-  getAll(params: PaginationParams): Observable<PaginatedResponse<CategoryDto>> {
-    let httpParams = new HttpParams()
-      .set('pageNumber', params.pageNumber.toString())
-      .set('pageSize', params.pageSize.toString());
-    
-    if (params.search) {
-      httpParams = httpParams.set('search', params.search);
+  // Get all categories with pagination, search, and filtering
+  getCategories(request: GetAllCategoriesRequest): Observable<PaginatedResult<Category>> {
+    let params = new HttpParams()
+      .set('PageNumber', request.pageNumber.toString())
+      .set('PageSize', request.pageSize.toString());
+
+    if (request.searchTerm) {
+      params = params.set('SearchTerm', request.searchTerm);
     }
-    
-    return this.http.get<PaginatedResponse<CategoryDto>>(this.apiUrl, { params: httpParams });
-  }
-
-  getById(id: string): Observable<CategoryDto> {
-    return this.http.get<CategoryDto>(`${this.apiUrl}/${id}`);
-  }
-
-  create(request: CreateCategoryRequest): Observable<string> {
-    const formData = new FormData();
-    formData.append('title', request.title);
-    formData.append('image', request.image);
-    formData.append('description', request.description);
-    if (request.createdBy) {
-      formData.append('createdBy', request.createdBy);
+    if (request.isActive !== undefined) {
+      params = params.set('IsActive', request.isActive.toString());
     }
-    return this.http.post<string>(this.apiUrl, formData);
+
+    return this.http.get<PaginatedResult<Category>>(this.apiUrl, { params });
   }
 
-  update(id: string, request: UpdateCategoryRequest): Observable<void> {
-    const formData = new FormData();
-    formData.append('id', request.id);
-    formData.append('title', request.title);
-    formData.append('description', request.description);
-    if (request.image) {
-      formData.append('image', request.image);
-    }
-    return this.http.put<void>(`${this.apiUrl}/${id}`, formData);
+  // Get category by id
+  getCategory(id: number): Observable<Category> {
+    return this.http.get<Category>(`${this.apiUrl}/${id}`);
   }
 
-  delete(id: string): Observable<void> {
+  // Create new category (with file upload)
+  createCategory(category: FormData): Observable<Category> {
+    return this.http.post<Category>(this.apiUrl, category);
+  }
+
+  // Update category
+  updateCategory(id: number, category: Category): Observable<Category> {
+    return this.http.put<Category>(`${this.apiUrl}/${id}`, category);
+  }
+
+  // Delete category
+  deleteCategory(id: number): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/${id}`);
   }
 }

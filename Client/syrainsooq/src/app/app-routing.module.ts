@@ -1,11 +1,27 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
-import { HomeComponent } from './home/home.component';
+import { HomeComponent } from './core/components/home/home.component';
+import { AdsHomeComponent } from './core/components/ads/ads-home/ads-home.component';
+import { AdsDetailsComponent } from './core/components/ads/ads-details/ads-details.component';
 
 const routes: Routes = [
   {
-    path: 'home',
+    path: '',
+
     component: HomeComponent,
+  },
+  {
+    path: 'all',
+
+    component: AdsHomeComponent,
+  },
+  {
+    path: 'all/:category',
+    component: AdsHomeComponent,
+  },
+  {
+    path: 'all/:category/:ads/:id',
+    component: AdsDetailsComponent,
   },
   {
     path: 'identity',
@@ -17,7 +33,16 @@ const routes: Routes = [
     loadChildren: () =>
       import('./admin/admin.module').then((m) => m.AdminModule),
   },
-  { path: '', redirectTo: 'home', pathMatch: 'full' },
+  {
+    path: 'dashboard',
+    loadChildren: () =>
+      import('./dashboard/dashboard.module').then((m) => m.DashboardModule),
+  },
+  {
+    path: 'ads',
+    loadChildren: () => import('./ads/ads.module').then((m) => m.AdsModule),
+  },
+  { path: '**', redirectTo: 'identity', pathMatch: 'full' },
 ];
 
 @NgModule({
