@@ -1,20 +1,17 @@
 ﻿using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json.Linq;
 using Rezqa.Application.Features.User.Dtos;
-using Rezqa.Application.Features.User.Handlers.Commands.Login;
-using Rezqa.Application.Features.User.Handlers.Commands.Logout;
-using Rezqa.Application.Features.User.Handlers.Commands.RefreshToken;
-using Rezqa.Application.Features.User.Handlers.Commands.Register;
-using Rezqa.Application.Features.User.Handlers.Commands.ResetPassword;
-using Rezqa.Application.Features.User.Handlers.Commands.VerifyEmail;
-using Rezqa.Application.Features.User.Handlers.Commands.ResendEmailConfirmation;
-using Rezqa.Application.Features.User.Handlers.Commands.ForgotPassword;
+using Rezqa.Application.Features.User.Request.Commands;
+using Rezqa.Application.Features.User.Request.Query;
+using System.Security.Claims;
+using System.Threading;
+
 namespace Rezqa.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[ResponseCache(CacheProfileName = "Default30")]
 public class AuthController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -31,6 +28,76 @@ public class AuthController : ControllerBase
 
     }
 
+    [HttpGet("is-auth")]
+    public async Task<ActionResult<bool>> IsAuthenticated()
+    {
+        return User.Identity.IsAuthenticated ? Ok() : Unauthorized();
+    }
+    [HttpGet("user-data")]
+    [Authorize]
+    public async Task<IActionResult> GetProfileData()
+    {
+        var userData = await _mediator.Send(new GetUserDataQuery(User.FindFirstValue(ClaimTypes.NameIdentifier)));
+        return Ok(userData);
+    }
+
+    /// <summary>
+    /// Get comprehensive user details including statistics
+    /// </summary>
+    /// <returns>Detailed user information with ads statistics</returns>
+    [HttpGet("user-details")]
+    [Authorize]
+    [ProducesResponseType(typeof(UserDetailsDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<UserDetailsDto>> GetUserDetails()
+    {
+        try
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized("User not found");
+            }
+
+            var userDetails = await _mediator.Send(new GetUserDetailsQuery(userId));
+            return Ok(userDetails);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to retrieve user details");
+            return StatusCode(500, "An error occurred while retrieving user details");
+        }
+    }
+
+    /// <summary>
+    /// Get comprehensive user details by user ID (Admin only)
+    /// </summary>
+    /// <param name="userId">The ID of the user to get details for</param>
+    /// <returns>Detailed user information with ads statistics</returns>
+    [HttpGet("user-details/{userId}")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(UserDetailsDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<UserDetailsDto>> GetUserDetailsById(string userId)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(userId))
+            {
+                return BadRequest("User ID is required");
+            }
+
+            var userDetails = await _mediator.Send(new GetUserDetailsQuery(userId));
+            return Ok(userDetails);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to retrieve user details for user {UserId}", userId);
+            return StatusCode(500, "An error occurred while retrieving user details");
+        }
+    }
+
     /// <summary>
     /// Register a new user
     /// </summary>
@@ -40,9 +107,8 @@ public class AuthController : ControllerBase
     [HttpPost("register")]
     [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ResponseCache(NoStore = true)]
     public async Task<ActionResult<AuthResponseDto>> Register(
-        [FromBody] RegisterCommandRequestDTO request,
+        [FromForm] RegisterCommandRequestDTO request,
         CancellationToken cancellationToken)
     {
         try
@@ -69,22 +135,24 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ResponseCache(NoStore = true)]
     public async Task<ActionResult<AuthResponseDto>> Login(
         [FromBody] LoginCommandRequestDTO request,
         CancellationToken cancellationToken)
     {
         try
         {
-            var response = await _mediator.Send(new LoginCommand(request), cancellationToken);
+            AuthResponseDto? response = await _mediator.Send(new LoginCommand(request), cancellationToken);
             if (!response.IsSuccess)
                 return BadRequest(response);
 
             // Set access token cookie
             SetAccessTokenCookie(response.AccessToken!);
 
+
+            var refresh = await _mediator.Send(
+                new RefreshTokenCommand(new RefreshTokenRequest(response.AccessToken!, 5)));
             // Set refresh token cookie (in a real app, generate a separate refresh token)
-            SetRefreshTokenCookie(response.AccessToken!);
+            SetRefreshTokenCookie(refresh.AccessToken!);
 
             return Ok(response);
         }
@@ -103,7 +171,6 @@ public class AuthController : ControllerBase
     [HttpPost("refresh-token")]
     [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ResponseCache(NoStore = true)]
     public async Task<ActionResult<AuthResponseDto>> RefreshToken(CancellationToken cancellationToken)
     {
         try
@@ -115,11 +182,16 @@ public class AuthController : ControllerBase
             }
 
             var response = await _mediator.Send(
-                new RefreshTokenCommand(new RefreshTokenRequest(refreshToken)),
+                new RefreshTokenCommand(new RefreshTokenRequest(refreshToken, 1)),
                 cancellationToken);
 
+            var refresh = await _mediator.Send(
+                new RefreshTokenCommand(new RefreshTokenRequest(refreshToken, 5)));
+
             // Set new refresh token cookie
-            SetRefreshTokenCookie(response.AccessToken!); // In real app, generate a new refresh token
+            SetAccessTokenCookie(response.AccessToken!);
+
+            SetRefreshTokenCookie(refresh.AccessToken!);
 
             return Ok(response);
         }
@@ -139,7 +211,6 @@ public class AuthController : ControllerBase
     [HttpPost("verify-email")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ResponseCache(NoStore = true)]
     public async Task<ActionResult> VerifyEmail(
         [FromBody] VerifyEmailRequest request,
         CancellationToken cancellationToken)
@@ -165,7 +236,6 @@ public class AuthController : ControllerBase
     [HttpPost("reset-password")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ResponseCache(NoStore = true)]
     public async Task<ActionResult> ResetPassword(
         [FromBody] ResetPasswordRequest request,
         CancellationToken cancellationToken)
@@ -183,25 +253,66 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Logout user and clear cookies
+    /// Logout user and generate new token with expiration
     /// </summary>
     /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Success status</returns>
+    /// <returns>Success status with new token</returns>
     [HttpPost("logout")]
     [Authorize]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    [ResponseCache(NoStore = true)]
     public async Task<ActionResult> Logout(CancellationToken cancellationToken)
     {
         try
         {
             await _mediator.Send(new LogoutCommand(), cancellationToken);
 
-            // Clear both cookies
-            Response.Cookies.Delete("accessToken");
-            Response.Cookies.Delete("refreshToken");
+            // Get current user from claims
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+            {
+                return BadRequest("User not found");
+            }
 
-            return Ok(new { Success = true });
+            // Generate a new token with very short expiration (1 minute) to invalidate the session
+            try
+            {
+                var response = await _mediator.Send(
+                    new GenerateTokenWithExpirationCommand(userId), // 1 minute expiration
+                    cancellationToken);
+
+                SetAccessTokenCookie(response);
+                SetRefreshTokenCookie(response);
+
+                return Ok(new
+                {
+                    Success = true,
+                    Message = "Logout successful. New token generated with short expiration.",
+                    Token = response,
+                    ExpiresIn = "1 minute",
+                    ExpiresAt = DateTime.UtcNow.AddMinutes(1).ToString("yyyy-MM-dd HH:mm:ss UTC")
+                });
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to generate new token during logout");
+            }
+
+            // Fallback: Clear cookies if token generation fails
+            var cookieOptions = new CookieOptions
+            {
+                Expires = DateTime.Now.AddDays(-30),
+                HttpOnly = true,
+                IsEssential = true,
+                Secure = true,
+                Path = "/",
+                SameSite = SameSiteMode.None,
+            };
+
+            Response.Cookies.Append("accessToken", string.Empty, cookieOptions);
+            Response.Cookies.Append("refreshToken", string.Empty, cookieOptions);
+
+            return Ok(new { Success = true, Message = "Logout successful. Cookies cleared." });
         }
         catch (Exception ex)
         {
@@ -209,7 +320,6 @@ public class AuthController : ControllerBase
             return BadRequest(ex.Message);
         }
     }
-
     /// <summary>
     /// Resends email confirmation link
     /// </summary>
@@ -225,7 +335,7 @@ public class AuthController : ControllerBase
         var command = new ResendEmailConfirmationCommand(dto);
         var result = await _mediator.Send(command);
 
-        if (!result)
+        if (!result.IsSuccess)
         {
             return BadRequest(result);
         }
@@ -244,7 +354,6 @@ public class AuthController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
-    [ResponseCache(NoStore = true)]
     public async Task<IActionResult> ForgotPassword(
         [FromBody] ForgotPasswordRequest request,
         CancellationToken cancellationToken)
@@ -255,7 +364,7 @@ public class AuthController : ControllerBase
             var result = await _mediator.Send(command, cancellationToken);
 
             // Always return success to prevent email enumeration
-            return result ? Ok(new { message = "سوف تتلقى رابط إعادة تعيين كلمة المرور." })
+            return result.IsSuccess ? Ok(new { message = "سوف تتلقى رابط إعادة تعيين كلمة المرور." })
                 : BadRequest(new { message = "هذا البريد الإلكتروني غير مسجل" });
         }
         catch (Exception ex)
@@ -265,14 +374,17 @@ public class AuthController : ControllerBase
         }
     }
 
+
     private void SetAccessTokenCookie(string token)
     {
         var cookieOptions = new CookieOptions
         {
+            //Domain = "https://syrianstore.runasp.net/",
+            Expires = DateTime.Now.AddDays(1),
             HttpOnly = true,
+            IsEssential = true,
             Secure = true,
-            SameSite = SameSiteMode.Strict,
-            Expires = DateTime.UtcNow.AddMinutes(15) // Match JWT expiration
+            SameSite = SameSiteMode.None,
         };
 
         Response.Cookies.Append("accessToken", token, cookieOptions);
@@ -280,12 +392,17 @@ public class AuthController : ControllerBase
 
     private void SetRefreshTokenCookie(string token)
     {
+
         var cookieOptions = new CookieOptions
         {
+            //Domain = "https://syrianstore.runasp.net/",
+            Expires = DateTime.Now.AddDays(5),
             HttpOnly = true,
+
+            IsEssential = true,
             Secure = true,
-            SameSite = SameSiteMode.Strict,
-            Expires = DateTime.UtcNow.AddDays(7) // Longer expiration for refresh token
+            Path = "/",
+            SameSite = SameSiteMode.None,
         };
 
         Response.Cookies.Append("refreshToken", token, cookieOptions);

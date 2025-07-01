@@ -1,48 +1,54 @@
 using Microsoft.AspNetCore.Http;
 using Rezqa.Domain.Common.Interfaces;
-
+using CloudinaryDotNet;
+using CloudinaryDotNet.Actions;
 
 namespace Rezqa.Infrastructure.Services;
 
 public class FileService : IFileService
 {
-    private readonly string _baseDirectory;
+    private readonly Cloudinary _cloudinary;
 
     public FileService()
     {
-        _baseDirectory = Path.Combine("wwwroot", "uploads");
-    }
+        var cloudName = Environment.GetEnvironmentVariable("cldid") ?? "819192798292484";
+        var apiKey = Environment.GetEnvironmentVariable("cldid") ?? "819192798292484";
+        var apiSecret = Environment.GetEnvironmentVariable("clds") ?? "7yD0nKAY51qOj3d9K78JKkGoAAY";
 
+        var account = new Account(cloudName, apiKey, apiSecret);
+        _cloudinary = new Cloudinary(account);
+    }
     public async Task<string> SaveFileAsync(IFormFile file, string directory)
     {
         if (file == null || file.Length == 0)
             throw new ArgumentException("File is empty", nameof(file));
 
-        var uploadPath = Path.Combine(_baseDirectory, directory);
-        if (!Directory.Exists(uploadPath))
-            Directory.CreateDirectory(uploadPath);
+        using var stream = file.OpenReadStream();
 
-        var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
-        var filePath = Path.Combine(uploadPath, fileName);
-
-        using (var stream = new FileStream(filePath, FileMode.Create))
+        // Create upload parameters with the correct resource type
+        var uploadParams = new ImageUploadParams
         {
-            await file.CopyToAsync(stream);
-        }
+            File = new FileDescription(file.FileName, stream),
+            Folder = directory,
+            UniqueFilename = true,
+            Overwrite = false
+        };
 
-        // Return the relative path from wwwroot
-        return Path.Combine("uploads", directory, fileName).Replace("\\", "/");
+        var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+        return uploadResult.SecureUrl.ToString();
     }
 
-    public async Task DeleteFileAsync(string filePath)
+    public async Task<bool> DeleteFileAsync(string filePath)
     {
         if (string.IsNullOrEmpty(filePath))
-            return;
+            return false;
 
-        var fullPath = Path.Combine(_baseDirectory, filePath.Replace("uploads/", ""));
-        if (File.Exists(fullPath))
-        {
-            await Task.Run(() => File.Delete(fullPath));
-        }
+        // Extract public ID from the URL
+        var publicId = filePath.Split('/').Last().Split('.').First();
+
+        var deleteParams = new DeletionParams(publicId);
+        var result = await _cloudinary.DestroyAsync(deleteParams);
+
+        return result.Result == "ok";
     }
 }

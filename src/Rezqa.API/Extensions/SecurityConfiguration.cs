@@ -26,10 +26,11 @@ public static class SecurityConfiguration
         services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
             .AddCookie(options =>
             {
+                options.Cookie.Name = "accessToken";
                 options.Cookie.HttpOnly = true;
                 options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-                options.Cookie.SameSite = SameSiteMode.Strict;
-                options.ExpireTimeSpan = TimeSpan.FromMinutes(60);
+
+
                 options.SlidingExpiration = true;
             });
 
@@ -38,49 +39,29 @@ public static class SecurityConfiguration
 
     public static IApplicationBuilder UseSecurityMiddleware(this IApplicationBuilder app)
     {
-        // Use Rate Limiting
-        app.UseIpRateLimiting();
 
         // Add Security Headers
         app.Use(async (context, next) =>
         {
             // Content Security Policy
-            context.Response.Headers.Add(
-                "Content-Security-Policy",
-                "default-src 'self'; " +
-                "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
-                "style-src 'self' 'unsafe-inline'; " +
-
-                "font-src 'self'; " +
-                "frame-ancestors 'none'; " +
-                "form-action 'self'; " +
-                "base-uri 'self'; " +
-                "object-src 'none'");
+            context.Response.Headers["Content-Security-Policy"] =
+                "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; object-src 'none'";
 
             // Strict Transport Security
-            context.Response.Headers.Add(
-                "Strict-Transport-Security",
-                "max-age=31536000; includeSubDomains; preload");
+            context.Response.Headers["Strict-Transport-Security"] =
+                "max-age=31536000; includeSubDomains; preload";
 
             // X-Frame-Options
-            context.Response.Headers.Add(
-                "X-Frame-Options",
-                "DENY");
+            context.Response.Headers["X-Frame-Options"] = "DENY";
 
             // X-Content-Type-Options
-            context.Response.Headers.Add(
-                "X-Content-Type-Options",
-                "nosniff");
+            context.Response.Headers["X-Content-Type-Options"] = "nosniff";
 
             // Referrer Policy
-            context.Response.Headers.Add(
-                "Referrer-Policy",
-                "strict-origin-when-cross-origin");
+            context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
 
             // X-XSS-Protection
-            context.Response.Headers.Add(
-                "X-XSS-Protection",
-                "1; mode=block");
+            context.Response.Headers["X-XSS-Protection"] = "1; mode=block";
 
             await next();
         });

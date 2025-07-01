@@ -6,38 +6,23 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Rezqa.Infrastructure.Persistence;
-using Rezqa.Application.Features.User.Handlers.Commands;
 using Microsoft.AspNetCore.Mvc;
 using Rezqa.Infrastructure.Extensions;
 using Microsoft.AspNetCore.ResponseCompression;
 using System.IO.Compression;
 using Rezqa.Application.Features.User.Settings;
 using Rezqa.Infrastructure.Settings;
-using Rezqa.API.Configuration;
+
+using Rezqa.API.RateLimiting;
+using Rezqa.Domain.Entities;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers(options =>
 {
-    // Add antiforgery token validation for all POST, PUT, DELETE requests
-    //options.Filters.Add<ValidateAntiforgeryTokenAttribute>();
-
-    // Add response caching
-    options.CacheProfiles.Add("Default30",
-        new CacheProfile()
-        {
-            Duration = 30,
-            Location = ResponseCacheLocation.Any,
-            VaryByQueryKeys = new[] { "*" }
-        });
+    // options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute()); // تم التعطيل لأن Web API لا يحتاجها
 });
-
-// Add Response Caching
-builder.Services.AddResponseCaching();
-
-// Add Memory Cache
-builder.Services.AddMemoryCache();
 
 // Add Response Compression
 builder.Services.AddResponseCompression(options =>
@@ -67,8 +52,11 @@ builder.Services.AddApplication();
 // Add Infrastructure Layer
 builder.Services.AddInfrastructure(builder.Configuration);
 
+// Add Advanced Rate Limiting
+builder.Services.AddAdvancedRateLimiting(builder.Configuration);
+
 // Add Identity with optimized settings
-builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
+builder.Services.AddIdentity<AppUsers, IdentityRole<Guid>>(options =>
 {
     // Password settings
     options.Password.RequireDigit = true;
@@ -86,16 +74,40 @@ builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
     options.SignIn.RequireConfirmedEmail = true;
 
     // Optimize token providers
-    options.Tokens.ProviderMap["Default"] = new TokenProviderDescriptor(typeof(DataProtectorTokenProvider<IdentityUser>));
+    options.Tokens.ProviderMap["Default"] = new TokenProviderDescriptor(typeof(DataProtectorTokenProvider<AppUsers>));
     options.Tokens.EmailConfirmationTokenProvider = TokenOptions.DefaultProvider;
     options.Tokens.PasswordResetTokenProvider = TokenOptions.DefaultProvider;
 })
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
 
-// Configure JWT with optimized settings
-var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
-builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
+// Configure JWT with environment variables
+var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET") ?? "^&*^&ASdhqwebqwhjbej*&^&^$%^#$@#@#@$^&(_)*(_*)*&&*)%(%^^%&%^$nadsjknadsiuiu";
+var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "http://localhost:7109";
+var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "https://syrianopenstor.netlify.app/";
+var jwtExpirationMinutes = int.Parse(Environment.GetEnvironmentVariable("JWT_EXPIRATION_MINUTES") ?? "60");
+
+// تحقق من قوة JWT Secret
+if (string.IsNullOrWhiteSpace(jwtSecret) || jwtSecret.Contains("your-super-secret"))
+{
+    throw new Exception("JWT_SECRET environment variable must be set to a strong value in production.");
+}
+
+var jwtSettings = new JwtSettings
+{
+    Secret = jwtSecret,
+    Issuer = jwtIssuer,
+    Audience = jwtAudience,
+    ExpirationInMinutes = jwtExpirationMinutes
+};
+
+builder.Services.Configure<JwtSettings>(options =>
+{
+    options.Secret = jwtSettings.Secret;
+    options.Issuer = jwtSettings.Issuer;
+    options.Audience = jwtSettings.Audience;
+    options.ExpirationInMinutes = jwtSettings.ExpirationInMinutes;
+});
 
 builder.Services.AddAuthentication(options =>
 {
@@ -110,7 +122,7 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtSettings!.Issuer,
+        ValidIssuer = jwtSettings.Issuer,
         ValidAudience = jwtSettings.Audience,
         IssuerSigningKey = new SymmetricSecurityKey(
             Encoding.UTF8.GetBytes(jwtSettings.Secret)
@@ -146,17 +158,18 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-
 // Add Security and CORS
 builder.Services.AddSecurityServices(builder.Configuration);
 builder.Services.AddCorsServices(builder.Configuration);
 
-builder.Services.AddRateLimiting(builder.Configuration);
+builder.Services.AddMemoryCache();
 
 var app = builder.Build();
 
 // Ensure uploads directory exists
-var uploadsPath = Path.Combine(app.Environment.WebRootPath, "uploads");
+var fileBaseDirectory = Environment.GetEnvironmentVariable("FILE_BASE_DIRECTORY") ?? "uploads";
+var webRootPath = app.Environment.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+var uploadsPath = Path.Combine(webRootPath, fileBaseDirectory);
 if (!Directory.Exists(uploadsPath))
 {
     Directory.CreateDirectory(uploadsPath);
@@ -169,10 +182,11 @@ using (var scope = app.Services.CreateScope())
     try
     {
         var context = services.GetRequiredService<ApplicationDbContext>();
-        var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
-        var userManager = services.GetRequiredService<UserManager<IdentityUser>>();
+        var roleManager = services.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
+        var userManager = services.GetRequiredService<UserManager<AppUsers>>();
         var logger = services.GetRequiredService<ILogger<Program>>();
         await context.SeedDataAsync(roleManager, userManager, logger);
+
     }
     catch (Exception ex)
     {
@@ -182,36 +196,28 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+//if (app.Environment.IsDevelopment())
+//{
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.UseStaticFiles();
 // Use Response Compression
 app.UseResponseCompression();
 
-
-
-// Use Response Caching
-app.UseResponseCaching();
-
 // Use custom security middleware
 app.UseSecurityMiddleware();
 app.UseCorsMiddleware();
 
-// Use XSS Protection Middleware
+app.UseSecurityMiddleware();
 app.UseMiddleware<XssProtectionMiddleware>();
-
-// Enforce HTTPS redirection
 app.UseHttpsRedirection();
 
-// Use Authentication & Authorization
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.UseRateLimiting();
+// Use Advanced Rate Limiting
+app.UseAdvancedRateLimiting();
 
 // Map controller endpoints
 app.MapControllers();

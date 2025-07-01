@@ -1,27 +1,65 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Rezqa.Domain.Common;
 using Rezqa.Domain.Entities;
 using Rezqa.Domain.Identity;
 
 namespace Rezqa.Infrastructure.Persistence;
 
-public class ApplicationDbContext : IdentityDbContext
+public class ApplicationDbContext : IdentityDbContext<AppUsers, IdentityRole<Guid>, Guid, IdentityUserClaim<Guid>, IdentityUserRole<Guid>, IdentityUserLogin<Guid>
+         , IdentityRoleClaim<Guid>, IdentityUserToken<Guid>>
 {
-    private readonly ILogger<ApplicationDbContext>? _logger;
 
+    private readonly IHttpContextAccessor _httpContextAccessor;
     public ApplicationDbContext(
         DbContextOptions<ApplicationDbContext> options,
-        ILogger<ApplicationDbContext>? logger = null)
+       IHttpContextAccessor httpContextAccessor)
         : base(options)
     {
-        _logger = logger;
+
         // Configure for better performance
+        _httpContextAccessor = httpContextAccessor ?? throw new ArgumentNullException(nameof(httpContextAccessor));
+
         ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
     }
 
     public DbSet<Category> Categories { get; set; } = null!;
+    public DbSet<SubCategory> SubCategories { get; set; } = null!;
+    public DbSet<DynamicField> DynamicFields { get; set; } = null!;
+    public DbSet<FieldOption> FieldOptions { get; set; } = null!;
+
+    public DbSet<Ad> ads { get; set; } = null!;
+    public DbSet<AdFieldValue> adFieldValues { get; set; } = null!;
+
+
+    protected override void OnModelCreating(ModelBuilder builder)
+    {
+        builder.Entity<IdentityUserLogin<Guid>>()
+            .HasKey(l => new { l.LoginProvider, l.ProviderKey });
+
+        builder.Entity<IdentityUserRole<Guid>>()
+           .HasKey(l => new { l.UserId, l.RoleId });
+
+        builder.Entity<IdentityUserToken<Guid>>()
+           .HasKey(l => new { l.UserId, l.LoginProvider, l.Name });
+
+        // Configure SubCategory entity
+        builder.Entity<SubCategory>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+            entity.HasOne(e => e.Category)
+                  .WithMany(c => c.SubCategories)
+                  .HasForeignKey(e => e.CategoryId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        base.OnModelCreating(builder);
+    }
+
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -29,21 +67,67 @@ public class ApplicationDbContext : IdentityDbContext
         // Enable split queries for better performance
         //optionsBuilder.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
     }
-
-    protected override void OnModelCreating(ModelBuilder builder)
+    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        base.OnModelCreating(builder);
+        var currentUser = _httpContextAccessor.HttpContext?.User.Identity?.Name ?? "not";
 
-        builder.Entity<Category>(entity =>
+        foreach (var entry in ChangeTracker.Entries<BaseEntity>())
         {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
-            entity.Property(e => e.Description).IsRequired().HasMaxLength(1000);
-            entity.Property(e => e.Image).IsRequired();
-            entity.Property(e => e.CreatedBy).IsRequired();
-            entity.Property(e => e.CreatedAt).IsRequired();
-        });
+            switch (entry.State)
+            {
+                case EntityState.Added:
+                    entry.Entity.CreatedAt = DateTime.UtcNow; // Use UTC for consistency
+                    entry.Entity.UpdatedAt = DateTime.UtcNow;
+                    entry.Entity.CreatedBy = currentUser!;
+                    entry.Entity.UpdatedBy = currentUser;
+                    break;
+
+                case EntityState.Modified:
+                    entry.Entity.UpdatedAt = DateTime.UtcNow;
+                    entry.Entity.UpdatedBy = currentUser;
+                    break;
+
+                default:
+                    break;
+            }
+        }
+
+        // Handle SubCategory audit fields
+        foreach (var entry in ChangeTracker.Entries<SubCategory>())
+        {
+            switch (entry.State)
+            {
+                case EntityState.Added:
+                    entry.Entity.CreatedAt = DateTime.UtcNow;
+                    entry.Entity.UpdatedAt = DateTime.UtcNow;
+                    entry.Entity.CreatedBy = currentUser!;
+                    entry.Entity.UpdatedBy = currentUser;
+                    break;
+
+                case EntityState.Modified:
+                    entry.Entity.UpdatedAt = DateTime.UtcNow;
+                    entry.Entity.UpdatedBy = currentUser;
+                    break;
+
+                default:
+                    break;
+            }
+        }
+
+        try
+        {
+            return await base.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex)
+        {
+            // Log or handle exception as needed
+            var errorMessage = $"Error in SaveChangesAsync: {ex.Message}. " +
+                               $"InnerException: {ex.InnerException?.Message}";
+            Console.WriteLine(errorMessage); // Replace with your logging library
+            throw new Exception("An error occurred while saving changes to the database.", ex);
+        }
     }
+
 }
 
 // Move seeding logic to a separate service
@@ -51,14 +135,14 @@ public static class DbContextExtensions
 {
     public static async Task SeedDataAsync(
         this ApplicationDbContext context,
-        RoleManager<IdentityRole> roleManager,
-        UserManager<IdentityUser> userManager,
+        RoleManager<IdentityRole<Guid>> roleManager,
+        UserManager<AppUsers> userManager,
         ILogger logger)
     {
         try
         {
             await RoleSeeder.SeedRolesAsync(roleManager, logger);
-            await RoleSeeder.SeedAdminUserAsync(userManager, logger);
+            await RoleSeeder.SeedAdminUserAsync(userManager, roleManager, logger);
         }
         catch (Exception ex)
         {

@@ -73,44 +73,11 @@ export class authAdsGuard implements CanActivate {
   }
 
   private refreshToken(): Observable<any> {
-    return new Observable((observer) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST', `${environment.apiUrl}Auth/refresh-token`, true);
-      xhr.withCredentials = true;
-
-      xhr.onload = () => {
-        if (xhr.status === 200) {
-          observer.next(xhr.response);
-          observer.complete();
-          // If we have a stored URL and we're coming from a refresh, redirect to it
-          if (this.originalUrl && this.originalUrl !== '/identity/login') {
-            const url = this.originalUrl;
-            this.originalUrl = null; // Clear the stored URL
-            this.router.createUrlTree([url]);
-          }
-        } else {
-          observer.error(
-            new HttpErrorResponse({
-              status: xhr.status,
-              statusText: xhr.statusText,
-              error: xhr.response,
-            })
-          );
-        }
-      };
-
-      xhr.onerror = () => {
-        observer.error(
-          new HttpErrorResponse({
-            status: 0,
-            statusText: 'Network Error',
-            error: 'Network error occurred',
-          })
-        );
-      };
-
-      xhr.send();
-    });
+    return this.http.post(
+      `${environment.apiUrl}Auth/refresh-token`,
+      {},
+      { withCredentials: true }
+    );
   }
 
   private redirectToLogin(): UrlTree {

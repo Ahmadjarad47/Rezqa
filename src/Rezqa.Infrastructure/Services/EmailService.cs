@@ -2,14 +2,9 @@ using System.Net.Mail;
 using System.Net;
 using Microsoft.Extensions.Logging;
 using Rezqa.Infrastructure.Settings;
+using Rezqa.Application.Interfaces;
 
 namespace Rezqa.Infrastructure.Services;
-
-public interface IEmailService
-{
-    Task SendEmailVerificationAsync(string email, string userName, string token);
-    Task SendPasswordResetAsync(string email, string userName, string token);
-}
 
 public class EmailService : IEmailService
 {

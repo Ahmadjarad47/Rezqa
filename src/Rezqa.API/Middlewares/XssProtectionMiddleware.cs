@@ -1,6 +1,9 @@
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Primitives;
+using System.IO;
+using System.Text;
+using System.Text.Json;
 
 namespace Rezqa.API.Middlewares;
 
@@ -62,6 +65,38 @@ public class XssProtectionMiddleware
                 context.Request.Headers[header.Key] = new StringValues(
                     header.Value.Select(SanitizeInput).ToArray()
                 );
+            }
+        }
+
+        // Sanitize JSON body
+        if (context.Request.ContentType != null && context.Request.ContentType.Contains("application/json"))
+        {
+            context.Request.EnableBuffering(); // يسمح بقراءة الـ Body أكثر من مرة
+            using var reader = new StreamReader(context.Request.Body, Encoding.UTF8, leaveOpen: true);
+            var body = await reader.ReadToEndAsync();
+            context.Request.Body.Position = 0;
+
+            if (!string.IsNullOrWhiteSpace(body))
+            {
+                // استخدم Newtonsoft.Json أو System.Text.Json لتحليل الـ JSON
+                var dict = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(body);
+
+                if (dict != null)
+                {
+                    var sanitized = new Dictionary<string, object>();
+                    foreach (var kv in dict)
+                    {
+                        if (kv.Value is string strVal)
+                            sanitized[kv.Key] = SanitizeInput(strVal);
+                        else
+                            sanitized[kv.Key] = kv.Value;
+                    }
+
+                    var sanitizedJson = System.Text.Json.JsonSerializer.Serialize(sanitized);
+                    var bytes = Encoding.UTF8.GetBytes(sanitizedJson);
+                    context.Request.Body = new MemoryStream(bytes);
+                    context.Request.Body.Position = 0;
+                }
             }
         }
 

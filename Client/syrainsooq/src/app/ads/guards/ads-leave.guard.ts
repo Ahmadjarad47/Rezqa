@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { CanDeactivate } from '@angular/router';
 import { Observable } from 'rxjs';
+import { switchMap, of } from 'rxjs';
 
 export interface ComponentCanDeactivate {
   canDeactivate: () => boolean | Observable<boolean>;
@@ -13,13 +14,23 @@ export class AdsLeaveGuard implements CanDeactivate<ComponentCanDeactivate> {
   canDeactivate(
     component: ComponentCanDeactivate
   ): boolean | Observable<boolean> {
-    return new Observable<boolean>(observer => {
-      // const result = window.confirm('Are you sure you want to leave? Any unsaved changes will be lost.');
-     setTimeout(()=>{
+    const canDeactivate = component.canDeactivate ? component.canDeactivate() : true;
 
-     },10000)
-      observer.next(true);
-      observer.complete();
-    });
+    if (typeof canDeactivate === 'boolean' && canDeactivate) {
+      return true;
+    }
+    
+    if (typeof canDeactivate === 'boolean' && !canDeactivate) {
+      return window.confirm('هل أنت متأكد أنك تريد المغادرة؟ سيتم فقدان أي تغييرات غير محفوظة.');
+    }
+
+    return (canDeactivate as Observable<boolean>).pipe(
+      switchMap(shouldDeactivate => {
+        if (shouldDeactivate) {
+          return of(true);
+        }
+        return of(window.confirm('هل أنت متأكد أنك تريد المغادرة؟ سيتم فقدان أي تغييرات غير محفوظة.'));
+      })
+    );
   }
 }

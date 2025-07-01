@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { Router } from '@angular/router';
 import { CategoryDto, HomeService } from '@app/core/services/home.service';
 import { AuthService } from '@app/identity/services/auth.service';
@@ -7,7 +7,7 @@ import { AuthService } from '@app/identity/services/auth.service';
   selector: 'app-home',
   standalone: false,
   templateUrl: './home.component.html',
-  styleUrl: './home.component.css'
+  styleUrls: ['./home.component.css'],
 })
 export class HomeComponent implements OnInit {
   isAuthenticated = false;

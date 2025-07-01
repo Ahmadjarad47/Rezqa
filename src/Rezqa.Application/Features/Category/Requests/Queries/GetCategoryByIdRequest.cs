@@ -6,5 +6,5 @@ namespace Rezqa.Application.Features.Category.Requests.Queries;
 
 public class GetCategoryByIdRequest : IRequest<CategoryDto>
 {
-    public Guid Id { get; set; }
-} 
+    public int Id { get; set; }
+}

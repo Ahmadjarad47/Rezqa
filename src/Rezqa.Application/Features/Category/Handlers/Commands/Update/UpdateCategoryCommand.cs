@@ -1,36 +1,35 @@
 using MediatR;
-using Microsoft.EntityFrameworkCore;
-using Rezqa.Domain.Common.Interfaces;
 using Rezqa.Application.Features.Category.Requests.Commands;
-using Rezqa.Infrastructure.Persistence;
-using System;
+using Rezqa.Application.Interfaces;
+using Rezqa.Domain.Common.Interfaces;
+using Rezqa.Domain.Entities;
 
 namespace Rezqa.Application.Features.Category.Handlers.Commands.Update;
 
 public class UpdateCategoryCommand : IRequestHandler<UpdateCategoryRequest, bool>
 {
-    private readonly ApplicationDbContext _context;
+    private readonly ICategoryRepository _categoryRepository;
     private readonly IFileService _fileService;
 
-    public UpdateCategoryCommand(ApplicationDbContext context, IFileService fileService)
+    public UpdateCategoryCommand(ICategoryRepository categoryRepository, IFileService fileService)
     {
-        _context = context;
+        _categoryRepository = categoryRepository;
         _fileService = fileService;
     }
 
     public async Task<bool> Handle(UpdateCategoryRequest request, CancellationToken cancellationToken)
     {
-        var category = await _context.Categories.FindAsync(new object[] { request.Id }, cancellationToken);
+        var category = await _categoryRepository.GetByIdAsync(request.Id);
         if (category == null)
             return false;
 
         category.Title = request.Title;
         category.Description = request.Description;
-        category.UpdatedBy = request.UpdatedBy;
-        category.UpdatedAt = DateTime.UtcNow;
+        category.IsActive = request.IsActive;
 
         if (request.Image != null)
         {
+            // Delete old image if exists
             if (!string.IsNullOrEmpty(category.Image))
             {
                 await _fileService.DeleteFileAsync(category.Image);
@@ -38,7 +37,7 @@ public class UpdateCategoryCommand : IRequestHandler<UpdateCategoryRequest, bool
             category.Image = await _fileService.SaveFileAsync(request.Image, "categories");
         }
 
-        await _context.SaveChangesAsync(cancellationToken);
+        await _categoryRepository.UpdateAsync(category);
         return true;
     }
-}
+} 

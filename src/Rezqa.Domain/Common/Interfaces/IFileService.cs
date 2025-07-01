@@ -6,5 +6,5 @@ namespace Rezqa.Domain.Common.Interfaces;
 public interface IFileService
 {
     Task<string> SaveFileAsync(IFormFile file, string directory);
-    Task DeleteFileAsync(string filePath);
-} 
+    Task<bool> DeleteFileAsync(string filePath);
+}

@@ -1,7 +1,7 @@
 import { HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { NgxSpinnerService } from 'ngx-spinner';
-import { delay, finalize } from 'rxjs';
+import { finalize } from 'rxjs';
 
 export const credentialsInterceptor: HttpInterceptorFn = (req, next) => {
   const loader = inject(NgxSpinnerService);
@@ -16,7 +16,6 @@ export const credentialsInterceptor: HttpInterceptorFn = (req, next) => {
     loader.show();
   }
   return next(req).pipe(
-    delay(1000),
     finalize(() => {
       loader.hide();
     })

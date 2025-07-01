@@ -5,5 +5,5 @@ namespace Rezqa.Application.Features.Category.Requests.Commands;
 
 public class DeleteCategoryRequest : IRequest<bool>
 {
-    public Guid Id { get; set; }
+    public int Id { get; set; }
 } 

@@ -3,10 +3,10 @@ using System.ComponentModel.DataAnnotations;
 namespace Rezqa.Application.Features.User.Dtos;
 
 public record RegisterRequest(
-    [Required] [StringLength(50)] string UserName,
-    [Required] [EmailAddress] string Email,
-    [Required] [Phone] string Phone,
-    [Required] [StringLength(100, MinimumLength = 6)] string Password
+    [Required][StringLength(50)] string UserName,
+    [Required][EmailAddress] string Email,
+    [Required][Phone] string Phone,
+    [Required][StringLength(100, MinimumLength = 6)] string Password
 );
 
 public record LoginRequest(
@@ -22,7 +22,8 @@ public record AuthResponse(
 );
 
 public record RefreshTokenRequest(
-    [Required] string RefreshToken
+    [Required] string RefreshToken,
+    [Required] int Day
 );
 
 public record VerifyEmailRequest(
@@ -33,7 +34,7 @@ public record VerifyEmailRequest(
 public record ResetPasswordRequest(
     [Required] string Token,
     [Required] string Email,
-    [Required] [StringLength(100, MinimumLength = 6)] string NewPassword
+    [Required][StringLength(100, MinimumLength = 6)] string NewPassword
 );
 
 public record TokenResponse(
@@ -42,5 +43,17 @@ public record TokenResponse(
 );
 
 public record ForgotPasswordRequest(
-    [Required] [EmailAddress] string Email
-); 
+    [Required][EmailAddress] string Email
+);
+public class GetAllUsers()
+{
+    public string UserName { get; set; }
+    public string Id { get; set; }
+    public string Email { get; set; }
+    public string PhoneNumber { get; set; }
+    public DateTimeOffset? LockoutEnd { get; set; }
+    public bool IsBlocked { get; set; }
+    public string Roles { get; set; }
+    public bool isConfirmeEmail { get; set; }
+    public string Image { get; set; }
+}

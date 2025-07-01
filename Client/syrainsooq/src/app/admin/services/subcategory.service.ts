@@ -1,6 +1,7 @@
 import { Inject, Injectable, PLATFORM_ID } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
-import { Observable, EMPTY } from 'rxjs';
+import { Observable, EMPTY, throwError } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import {
   SubCategory,
   GetAllSubCategoriesRequest,
@@ -12,6 +13,7 @@ import {
 } from '../models/subcategory';
 import { environment } from '../../../environments/environment.development';
 import { isPlatformBrowser } from '@angular/common';
+import { ToastrService } from 'ngx-toastr';
 
 @Injectable({
   providedIn: 'root',
@@ -21,8 +23,14 @@ export class SubCategoryService {
 
   constructor(
     private http: HttpClient,
-    @Inject(PLATFORM_ID) private platformId: Object
+    @Inject(PLATFORM_ID) private platformId: Object,
+    private toastr: ToastrService
   ) {}
+
+  private handleError(error: any): Observable<never> {
+    this.toastr.error('حدث خطأ أثناء تنفيذ العملية. الرجاء المحاولة لاحقاً.', 'خطأ');
+    return throwError(() => error);
+  }
 
   // Get all sub-categories with pagination, search, and filtering
   getSubCategories(
@@ -42,7 +50,7 @@ export class SubCategoryService {
 
       return this.http.get<PaginatedResult<SubCategoryDto>>(this.apiUrl, {
         params,
-      });
+      }).pipe(catchError(error => this.handleError(error)));
     }
     return EMPTY;
   }
@@ -50,7 +58,8 @@ export class SubCategoryService {
   // Get sub-category by id
   getSubCategory(id: number): Observable<SubCategoryDto> {
     if (isPlatformBrowser(this.platformId)) {
-      return this.http.get<SubCategoryDto>(`${this.apiUrl}/${id}`);
+      return this.http.get<SubCategoryDto>(`${this.apiUrl}/${id}`)
+        .pipe(catchError(error => this.handleError(error)));
     }
     return EMPTY;
   }
@@ -60,7 +69,8 @@ export class SubCategoryService {
     request: CreateSubCategoryRequest
   ): Observable<SubCategoryDto> {
     if (isPlatformBrowser(this.platformId)) {
-      return this.http.post<SubCategoryDto>(this.apiUrl, request);
+      return this.http.post<SubCategoryDto>(this.apiUrl, request)
+        .pipe(catchError(error => this.handleError(error)));
     }
     return EMPTY;
   }
@@ -71,7 +81,8 @@ export class SubCategoryService {
     request: UpdateSubCategoryRequest
   ): Observable<SubCategoryDto> {
     if (isPlatformBrowser(this.platformId)) {
-      return this.http.put<SubCategoryDto>(`${this.apiUrl}/${id}`, request);
+      return this.http.put<SubCategoryDto>(`${this.apiUrl}/${id}`, request)
+        .pipe(catchError(error => this.handleError(error)));
     }
     return EMPTY;
   }
@@ -79,7 +90,8 @@ export class SubCategoryService {
   // Delete sub-category
   deleteSubCategory(id: number): Observable<void> {
     if (isPlatformBrowser(this.platformId)) {
-      return this.http.delete<void>(`${this.apiUrl}/${id}`);
+      return this.http.delete<void>(`${this.apiUrl}/${id}`)
+        .pipe(catchError(error => this.handleError(error)));
     }
     return EMPTY;
   }
@@ -100,6 +112,6 @@ export class SubCategoryService {
     return this.http.get<PaginatedResult<SubCategoryDto>>(
       `${this.apiUrl}/by-category/${categoryId}`,
       { params }
-    );
+    ).pipe(catchError(error => this.handleError(error)));
   }
 }

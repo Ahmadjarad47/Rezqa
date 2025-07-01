@@ -7,27 +7,19 @@ public static class CorsConfiguration
 {
     public static IServiceCollection AddCorsServices(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddCors(options =>
+        // Get allowed origins from environment variable
+        var allowedOrigins = (Environment.GetEnvironmentVariable("ALLOWED_ORIGINS") ?? "https://syrianopenstor.netlify.app").Split(';');
+
+        services.AddCors(config =>
         {
-            options.AddPolicy("StrictPolicy", builder =>
+            config.AddPolicy("StrictPolicy", op =>
             {
-                // Load allowed origins from configuration or hardcode
-                var allowedOrigins = configuration.GetSection("AllowedOrigins").Get<string[]>();
-
-                if (allowedOrigins == null || !allowedOrigins.Any())
-                {
-                    allowedOrigins = new[] { "http://localhost:4200" }; // ✅ Do NOT add trailing slash
-                }
-
-                builder.WithOrigins(allowedOrigins)
-                       .AllowCredentials()
-                       .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                       .WithHeaders("Authorization", "Content-Type", "X-XSRF-TOKEN")
-                       .SetIsOriginAllowedToAllowWildcardSubdomains()
-                       .SetPreflightMaxAge(TimeSpan.FromMinutes(10));
+                op.SetIsOriginAllowed(or => allowedOrigins.Contains(or))
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials();
             });
         });
-
 
         return services;
     }

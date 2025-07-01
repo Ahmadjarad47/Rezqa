@@ -1,40 +1,33 @@
 using MediatR;
-using Rezqa.Domain.Common.Interfaces;
 using Rezqa.Application.Features.Category.Requests.Commands;
-using Rezqa.Infrastructure.Persistence;
-using System;
+using Rezqa.Application.Interfaces;
+using Rezqa.Domain.Common.Interfaces;
+using Rezqa.Domain.Entities;
 
 namespace Rezqa.Application.Features.Category.Handlers.Commands.Create;
 
-public class CreateCategoryCommand : IRequestHandler<CreateCategoryRequest, Guid>
+public class CreateCategoryCommand : IRequestHandler<CreateCategoryRequest, int>
 {
-    private readonly ApplicationDbContext _context;
-    private readonly IFileService _fileService;
-
-    public CreateCategoryCommand(ApplicationDbContext context, IFileService fileService)
+    private readonly ICategoryRepository _categoryRepository;
+    private readonly IFileService fileService;
+    public CreateCategoryCommand(ICategoryRepository categoryRepository, IFileService fileService)
     {
-        _context = context;
-        _fileService = fileService;
+        _categoryRepository = categoryRepository;
+        this.fileService = fileService;
     }
 
-    public async Task<Guid> Handle(CreateCategoryRequest request, CancellationToken cancellationToken)
+    public async Task<int> Handle(CreateCategoryRequest request, CancellationToken cancellationToken)
     {
-        if (request.Image == null)
-            throw new ArgumentException("Image is required", nameof(request.Image));
-
-        var category = new Domain.Entities.Category
+        var category = new Rezqa.Domain.Entities.Category
         {
-            Id = Guid.NewGuid(),
             Title = request.Title,
-            Description = request.Description,
-            CreatedBy = request.CreatedBy,
-            CreatedAt = DateTime.UtcNow,
-            Image = await _fileService.SaveFileAsync(request.Image, "categories")
-        };
+            Description = request.Title,
+            IsActive = request.IsActive,
+            Image = await fileService.SaveFileAsync(request.Image,"category")
+        }
+        ;
 
-        await _context.Categories.AddAsync(category);
-        await _context.SaveChangesAsync(cancellationToken);
-
-        return category.Id;
+        var result = await _categoryRepository.AddAsync(category);
+        return result.Id;
     }
 }

@@ -5,5 +5,7 @@ public record AuthResponseDto(
     string? AccessToken = null,
     string? UserName = null,
     string? Email = null,
+    string? PhoneNumber = null,
+    string? ImageUrl = null,
     IList<string>? Roles = null
 );

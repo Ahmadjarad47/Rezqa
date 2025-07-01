@@ -1,25 +1,24 @@
 using MediatR;
-using Rezqa.Domain.Common.Interfaces;
 using Rezqa.Application.Features.Category.Requests.Commands;
-using Rezqa.Infrastructure.Persistence;
-using System;
+using Rezqa.Application.Interfaces;
+using Rezqa.Domain.Common.Interfaces;
 
 namespace Rezqa.Application.Features.Category.Handlers.Commands.Delete;
 
 public class DeleteCategoryCommand : IRequestHandler<DeleteCategoryRequest, bool>
 {
-    private readonly ApplicationDbContext _context;
+    private readonly ICategoryRepository _categoryRepository;
     private readonly IFileService _fileService;
 
-    public DeleteCategoryCommand(ApplicationDbContext context, IFileService fileService)
+    public DeleteCategoryCommand(ICategoryRepository categoryRepository, IFileService fileService)
     {
-        _context = context;
+        _categoryRepository = categoryRepository;
         _fileService = fileService;
     }
 
     public async Task<bool> Handle(DeleteCategoryRequest request, CancellationToken cancellationToken)
     {
-        var category = await _context.Categories.FindAsync(new object[] { request.Id }, cancellationToken);
+        var category = await _categoryRepository.GetByIdAsync(request.Id);
         if (category == null)
             return false;
 
@@ -28,8 +27,7 @@ public class DeleteCategoryCommand : IRequestHandler<DeleteCategoryRequest, bool
             await _fileService.DeleteFileAsync(category.Image);
         }
 
-        _context.Categories.Remove(category);
-        await _context.SaveChangesAsync(cancellationToken);
+        await _categoryRepository.DeleteAsync(category);
         return true;
     }
-}
+} 
