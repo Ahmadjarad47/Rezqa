@@ -3,12 +3,6 @@ using Rezqa.Application.Common.Models;
 using Rezqa.Application.Features.Ad.Request.Query;
 using Rezqa.Application.Interfaces;
 using Rezqa.Domain.Entities;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Threading;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace Rezqa.Infrastructure.Persistence.Repositories
@@ -32,6 +26,7 @@ namespace Rezqa.Infrastructure.Persistence.Repositories
 
             IQueryable<Ad> query = _context.ads
                 .AsNoTracking()
+                .Where(m=>m.isActive)
                 .Include(c => c.Category)
                 .Include(a => a.AppUsers)
                 .Include(a => a.FieldValues).ThenInclude(f => f.DynamicField);
@@ -98,7 +93,9 @@ namespace Rezqa.Infrastructure.Persistence.Repositories
         {
             await _context.ads.AddAsync(entity);
             await _context.SaveChangesAsync();
+            _cache.Remove("AllAdsCacheKey");
             return entity;
+
         }
 
         public async Task DeleteAsync(Ad entity)
@@ -186,6 +183,22 @@ namespace Rezqa.Infrastructure.Persistence.Repositories
         {
             _context.ads.Update(entity);
             await _context.SaveChangesAsync();
+            _cache.Remove("AllAdsCacheKey");
+        }
+
+        public async Task<int> DeactivateExpiredAdsAsync(int days, CancellationToken cancellationToken = default)
+        {
+            var expirationDate = DateTime.UtcNow.AddDays(-days);
+            var expiredAds = await _context.ads
+                .Where(ad => ad.isActive && ad.CreatedAt < expirationDate)
+                .ToListAsync(cancellationToken);
+            foreach (var ad in expiredAds)
+            {
+                ad.isActive = false;
+            }
+            var affected = await _context.SaveChangesAsync(cancellationToken);
+            _cache.Remove(AllAdsCacheKey);
+            return affected;
         }
     }
 }

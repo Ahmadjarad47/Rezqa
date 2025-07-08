@@ -32,5 +32,6 @@ public class UpdateAdDto
     [EmailAddress]
     public string Email { get; set; } = null!;
 
+    public bool isActive { get; set; }
     public IFormFileCollection? ImageUrl { get; set; }
-} 
+}

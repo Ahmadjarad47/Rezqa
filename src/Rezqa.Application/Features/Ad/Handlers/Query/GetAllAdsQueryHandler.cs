@@ -75,6 +75,8 @@ public class GetAllAdsQueryHandler : IRequestHandler<GetAllAdsQuery, PaginatedRe
             isActive = ad.isActive,
             UserName = ad.AppUsers.UserName,
             location = ad.location,
+            CreatedAt = ad.CreatedAt,
+
             PhonNumber = ad.AppUsers.PhoneNumber,
             adFieldDtos = ad.FieldValues.Select(adField => new AdFieldDto
             {

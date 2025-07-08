@@ -12,4 +12,5 @@ public interface IAdRepository : IRepository<Ad>
     Task<IEnumerable<Ad>> GetAdsByPriceRangeAsync(decimal minPrice, decimal maxPrice);
     Task<IEnumerable<Ad>> GetAdsWithFieldValuesAsync();
     Task<Ad?> GetAdWithFieldValuesByIdAsync(int id);
+    Task<int> DeactivateExpiredAdsAsync(int days, CancellationToken cancellationToken = default);
 }

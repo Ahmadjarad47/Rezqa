@@ -20,7 +20,7 @@ public class GetAllCategoriesQuery : IRequestHandler<GetAllCategoriesRequest, Pa
         var allCategories = await _categoryRepository.GetAllAsync();
         if (request.isPagnationStop)
         {
-            var categoryDto = allCategories.Select(c => new CategoryDto
+            var categoryDto = allCategories.Where(m=>m.IsActive).Select(c => new CategoryDto
             {
                 Id = c.Id,
                 Title = c.Title,

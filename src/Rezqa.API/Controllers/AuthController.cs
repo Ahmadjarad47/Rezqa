@@ -148,13 +148,60 @@ public class AuthController : ControllerBase
             // Set access token cookie
             SetAccessTokenCookie(response.AccessToken!);
 
-
             var refresh = await _mediator.Send(
                 new RefreshTokenCommand(new RefreshTokenRequest(response.AccessToken!, 5)));
             // Set refresh token cookie (in a real app, generate a separate refresh token)
             SetRefreshTokenCookie(refresh.AccessToken!);
 
             return Ok(response);
+        }
+        catch (ApplicationException ex)
+        {
+            _logger.LogError(ex, "Login failed for user {Email}", request.Email);
+            return BadRequest(ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Login user and get JWT token (Flutter compatible)
+    /// </summary>
+    /// <param name="request">Login credentials</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Authentication response with JWT token in response body</returns>
+    [HttpPost("login-flutter")]
+    [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<AuthResponseDto>> LoginFlutter(
+        [FromBody] LoginCommandRequestDTO request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            AuthResponseDto? response = await _mediator.Send(new LoginCommand(request), cancellationToken);
+            if (!response.IsSuccess)
+                return BadRequest(response);
+
+            // Set access token cookie
+            //SetAccessTokenCookie(response.AccessToken!);
+
+            var refresh = await _mediator.Send(
+                new RefreshTokenCommand(new RefreshTokenRequest(response.AccessToken!, 5)));
+            // Set refresh token cookie
+            //SetRefreshTokenCookie(refresh.AccessToken!);
+
+            // إرجاع التوكن في الـ response body للـ Flutter
+            return Ok(new
+            {
+                IsSuccess = response.IsSuccess,
+                Message = response.Message,
+                AccessToken = response.AccessToken,
+                RefreshToken = refresh.AccessToken,
+                UserName = response.UserName,
+                Email = response.Email,
+                PhoneNumber = response.PhoneNumber,
+                ImageUrl = response.ImageUrl,
+                Roles = response.Roles
+            });
         }
         catch (ApplicationException ex)
         {
@@ -374,6 +421,90 @@ public class AuthController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Refresh JWT token using refresh token (Flutter compatible)
+    /// </summary>
+    /// <param name="request">Refresh token request</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>New authentication response with JWT token in response body</returns>
+    [HttpPost("refresh-token-flutter")]
+    [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<AuthResponseDto>> RefreshTokenFlutter(
+        [FromBody] RefreshTokenRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(request.RefreshToken))
+            {
+                return BadRequest("Refresh token is required");
+            }
+
+            var response = await _mediator.Send(
+                new RefreshTokenCommand(new RefreshTokenRequest(request.RefreshToken, 1)),
+                cancellationToken);
+
+            var refresh = await _mediator.Send(
+                new RefreshTokenCommand(new RefreshTokenRequest(request.RefreshToken, 5)));
+
+            // Set new refresh token cookie
+            SetAccessTokenCookie(response.AccessToken!);
+            SetRefreshTokenCookie(refresh.AccessToken!);
+
+            // إرجاع التوكن في الـ response body للـ Flutter
+            return Ok(new
+            {
+                IsSuccess = response.IsSuccess,
+                Message = response.Message,
+                AccessToken = response.AccessToken,
+                RefreshToken = refresh.AccessToken,
+                UserName = response.UserName,
+                Email = response.Email,
+                PhoneNumber = response.PhoneNumber,
+                ImageUrl = response.ImageUrl,
+                Roles = response.Roles
+            });
+        }
+        catch (ApplicationException ex)
+        {
+            _logger.LogError(ex, "Token refresh failed");
+            return BadRequest(ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Test endpoint to verify token reception method
+    /// </summary>
+    /// <returns>Information about how the token was received</returns>
+    [HttpGet("test-token-reception")]
+    [Authorize]
+    public ActionResult TestTokenReception()
+    {
+        var authorizationHeader = Request.Headers["Authorization"].FirstOrDefault();
+        var accessTokenCookie = Request.Cookies["accessToken"];
+
+        var tokenSource = "Unknown";
+        if (!string.IsNullOrEmpty(authorizationHeader))
+        {
+            tokenSource = "Authorization Header (Flutter)";
+        }
+        else if (!string.IsNullOrEmpty(accessTokenCookie))
+        {
+            tokenSource = "HttpOnly Cookie (Angular)";
+        }
+
+        return Ok(new
+        {
+            Message = "Token received successfully",
+            TokenSource = tokenSource,
+            HasAuthorizationHeader = !string.IsNullOrEmpty(authorizationHeader),
+            HasAccessTokenCookie = !string.IsNullOrEmpty(accessTokenCookie),
+            UserId = User.FindFirstValue(ClaimTypes.NameIdentifier),
+            UserName = User.FindFirstValue(ClaimTypes.Name),
+            Roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList()
+        });
+    }
 
     private void SetAccessTokenCookie(string token)
     {
@@ -388,6 +519,9 @@ public class AuthController : ControllerBase
         };
 
         Response.Cookies.Append("accessToken", token, cookieOptions);
+
+        // إضافة التوكن في الـ response body أيضاً للعمل مع Flutter
+        Response.Headers.Add("X-Access-Token", token);
     }
 
     private void SetRefreshTokenCookie(string token)
@@ -406,5 +540,8 @@ public class AuthController : ControllerBase
         };
 
         Response.Cookies.Append("refreshToken", token, cookieOptions);
+
+        // إضافة التوكن في الـ response body أيضاً للعمل مع Flutter
+        Response.Headers.Add("X-Refresh-Token", token);
     }
 }

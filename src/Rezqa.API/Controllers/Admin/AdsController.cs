@@ -1,14 +1,13 @@
 ﻿using MediatR;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Rezqa.Application.Common.Models;
 using Rezqa.Application.Features.Ad.Dtos;
 using Rezqa.Application.Features.Ad.Request.Commands;
 using Rezqa.Application.Features.Ad.Request.Query;
-
 namespace Rezqa.API.Controllers.Admin
 {
+
     public class AdsController : BaseController
     {
         private readonly IMediator mediator;
@@ -63,7 +62,7 @@ namespace Rezqa.API.Controllers.Admin
         [HttpPut("update-Active-show")]
         public async Task<IActionResult> update(int id)
         {
-            var result = await mediator.Send(new UpdateStatusCommandRequest() { Id = id });
+            var result = await mediator.Send(new UpdateStatusCommandRequest() { Id = id, isAdmin = true });
             return Ok(result);
         }
 

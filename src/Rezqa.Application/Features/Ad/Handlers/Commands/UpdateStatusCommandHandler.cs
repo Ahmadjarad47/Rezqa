@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace Rezqa.Application.Features.Ad.Handlers.Commands
 {
-    internal class UpdateStatusCommandHandler : IRequestHandler<UpdateStatusCommandRequest, bool>
+    public class UpdateStatusCommandHandler : IRequestHandler<UpdateStatusCommandRequest, bool>
     {
         private readonly IAdRepository adRepository;
 
@@ -20,8 +20,22 @@ namespace Rezqa.Application.Features.Ad.Handlers.Commands
 
         public async Task<bool> Handle(UpdateStatusCommandRequest request, CancellationToken cancellationToken)
         {
+
             var ad = await adRepository.GetByIdAsync(request.Id);
-            ad.isActive = ad.isActive ? false : true;
+            if (!string.IsNullOrEmpty(request.userId) && ad.UserId.ToString() == request.userId)
+            {
+
+                ad.isActive = ad.isActive ? false : true;
+            }
+            else if (request.isAdmin)
+            {
+                ad.isActive = ad.isActive ? false : true;
+
+            }
+            else
+            {
+                return false;
+            }
             await adRepository.UpdateAsync(ad);
             return true;
         }

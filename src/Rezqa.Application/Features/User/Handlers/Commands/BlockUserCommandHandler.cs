@@ -28,7 +28,11 @@ public class BlockUserCommandHandler : IRequestHandler<BlockUserCommand, bool>
             {
                 throw new ApplicationException("User not found");
             }
+            if (user.LockoutEnd > DateTimeOffset.UtcNow)
+            {
+                var result1 = await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.UtcNow.AddDays(-10));
 
+            }
             // Set the lockout end date
             var result = await _userManager.SetLockoutEndDateAsync(user, request.Request.BlockUntil);
 

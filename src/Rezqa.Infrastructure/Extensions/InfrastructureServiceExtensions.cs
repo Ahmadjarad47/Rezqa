@@ -39,6 +39,7 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IDynamicFieldRepository, DynamicFieldRepository>();
         services.AddScoped<IAdRepository, AdRepository>();
         services.AddScoped<IWishlistRepository, WishlistRepository>();
+        services.AddScoped<Rezqa.Application.Interfaces.INotificationRepository, Rezqa.Infrastructure.Persistence.Repositories.NotificationRepository>();
 
         // Register EF DbContext
         services.AddDbContext<ApplicationDbContext>(options =>

@@ -32,6 +32,7 @@ public class GetAllUsersQueryHandler : IRequestHandler<GetAllUsersQuery, List<Us
                     Id = user.Id,
                     UserName = user.UserName,
                     Email = user.Email,
+                    ImageUrl = user.image,
                     PhoneNumber = user.PhoneNumber,
                     isConfirmeEmail = user.EmailConfirmed,
                     isBlocked = user.LockoutEnd > DateTime.Now,

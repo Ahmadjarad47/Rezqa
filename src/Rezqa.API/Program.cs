@@ -6,15 +6,13 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Rezqa.Infrastructure.Persistence;
-using Microsoft.AspNetCore.Mvc;
 using Rezqa.Infrastructure.Extensions;
 using Microsoft.AspNetCore.ResponseCompression;
 using System.IO.Compression;
 using Rezqa.Application.Features.User.Settings;
-using Rezqa.Infrastructure.Settings;
-
 using Rezqa.API.RateLimiting;
 using Rezqa.Domain.Entities;
+using Rezqa.API.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,7 +21,7 @@ builder.Services.AddControllers(options =>
 {
     // options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute()); // تم التعطيل لأن Web API لا يحتاجها
 });
-
+builder.Services.AddSingleton<PresenceTracker>();
 // Add Response Compression
 builder.Services.AddResponseCompression(options =>
 {
@@ -80,7 +78,9 @@ builder.Services.AddIdentity<AppUsers, IdentityRole<Guid>>(options =>
 })
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
-
+builder.Services.AddSingleton<PresenceMessageTracker>();
+builder.Services.AddHostedService<Rezqa.API.Services.ConnectionCleanupService>();
+builder.Services.AddHostedService<Rezqa.API.Services.AdExpirationService>();
 // Configure JWT with environment variables
 var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET") ?? "^&*^&ASdhqwebqwhjbej*&^&^$%^#$@#@#@$^&(_)*(_*)*&&*)%(%^^%&%^$nadsjknadsiuiu";
 var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "http://localhost:7109";
@@ -163,6 +163,7 @@ builder.Services.AddSecurityServices(builder.Configuration);
 builder.Services.AddCorsServices(builder.Configuration);
 
 builder.Services.AddMemoryCache();
+builder.Services.AddSignalR();
 
 var app = builder.Build();
 
@@ -221,5 +222,7 @@ app.UseAdvancedRateLimiting();
 
 // Map controller endpoints
 app.MapControllers();
+app.MapHub<Messages>("/hubs/messages");
+app.MapHub<NotificationsHub>("/hubs/notifications");
 
 app.Run();

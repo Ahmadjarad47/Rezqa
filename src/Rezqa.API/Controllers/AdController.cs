@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Mvc;
 using Rezqa.Application.Features.Ad.Dtos;
 using Rezqa.Application.Features.Ad.Request.Commands;
@@ -220,6 +221,14 @@ public class AdController : ControllerBase
         }
     }
 
+
+
+    [HttpPut("update-Active-show")]
+    public async Task<IActionResult> update(int id)
+    {
+        var result = await _mediator.Send(new UpdateStatusCommandRequest() { Id = id, userId = User.FindFirstValue(ClaimTypes.NameIdentifier) });
+        return Ok(result);
+    }
     /// <summary>
     /// Delete an ad
     /// </summary>

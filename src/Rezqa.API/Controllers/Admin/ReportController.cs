@@ -86,32 +86,24 @@ namespace Rezqa.API.Controllers.Admin
         [HttpPost("clear-cache")]
         public IActionResult ClearAllCache()
         {
-
-            int? cleared = null;
-            if (_memoryCache is MemoryCache memCache)
+            var keysToRemove = new[]
             {
-                var entriesCollection = memCache.GetType().GetProperty("EntriesCollection", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(memCache);
-                if (entriesCollection is System.Collections.ICollection coll)
-                {
-                    cleared = coll.Count;
-                    var keys = new List<object>();
-                    foreach (var entry in coll)
-                    {
-                        var keyProp = entry.GetType().GetProperty("Key");
-                        if (keyProp != null)
-                        {
-                            var key = keyProp.GetValue(entry);
-                            if (key != null)
-                                keys.Add(key);
-                        }
-                    }
-                    foreach (var key in keys)
-                    {
-                        _memoryCache.Remove(key);
-                    }
-                }
+        "AllAdsCacheKey",
+        "AllCategories",
+        "AllDynamicFields",
+        "AllSubCategories"
+    };
+
+            foreach (var key in keysToRemove)
+            {
+                _memoryCache.Remove(key);
             }
-            return Ok(new { message = "All cache cleared", entries_cleared = cleared });
+
+            return Ok(new
+            {
+                message = "Selected cache keys cleared.",
+                keysCleared = keysToRemove
+            });
         }
 
         // Helper to get cache count (works only if IMemoryCache is MemoryCache)

@@ -34,6 +34,7 @@ public class ApplicationDbContext : IdentityDbContext<AppUsers, IdentityRole<Gui
     public DbSet<Ad> ads { get; set; } = null!;
     public DbSet<AdFieldValue> adFieldValues { get; set; } = null!;
 
+    public DbSet<Notification> Notifications { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

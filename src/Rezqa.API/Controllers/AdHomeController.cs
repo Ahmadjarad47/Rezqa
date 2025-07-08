@@ -24,6 +24,7 @@ public class AdHomeController : ControllerBase
     public async Task<IActionResult> getAllCategory()
     {
         var result = await mediator.Send(new GetAllCategoriesRequest { isPagnationStop = true });
+      
         return Ok(result.Items);
     }
     [HttpGet(template: "Subcategory")]
